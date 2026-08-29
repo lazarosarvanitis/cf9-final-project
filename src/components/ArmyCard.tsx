@@ -1,4 +1,7 @@
+import {useNavigate} from "react-router";
+
 type ArmyCardProps = {
+    id: number;
     name: string;
     faction: string;
     detachment: string;
@@ -7,6 +10,7 @@ type ArmyCardProps = {
 }
 
 const ArmyCard = ({
+                      id,
                       name,
                       faction,
                       detachment,
@@ -14,14 +18,17 @@ const ArmyCard = ({
                       pointsLimit
                   }: ArmyCardProps) => {
 
+    const navigate = useNavigate();
+
     return (
         <div
+            onClick={() => navigate(`/armies/${id}`)}
             className="
-        flex h-[270px] min-w-[210px] cursor-pointer
-        flex-col justify-between rounded-lg
-        border border-border bg-card p-5
-        transition hover:bg-card-hover
-      "
+                flex h-[270px] min-w-[210px] cursor-pointer
+                flex-col justify-between rounded-lg
+                border border-border bg-card p-5
+                transition hover:bg-card-hover
+            "
         >
 
             <div>
