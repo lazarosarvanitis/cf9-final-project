@@ -1,0 +1,20 @@
+services:
+
+  postgres:
+    image: postgres:17
+    container_name: army-builder-postgres
+
+    environment:
+      POSTGRES_DB: army_builder
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+
+    ports:
+      - "5432:5432"
+
+    volumes:
+      - army_builder_data:/var/lib/postgresql/data
+
+
+volumes:
+  army_builder_data:
