@@ -274,7 +274,6 @@ const ArmyPage = () => {
         )
     }
 
-
     const factionUnits = getAvailableUnits(army.faction);
 
     const theme = getFactionTheme(army.faction);
