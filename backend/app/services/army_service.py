@@ -9,6 +9,7 @@ from app.repositories.user_repository import UserRepository
 
 
 # HANDLES ARMY LOGIC // ARMY VALID
+
 class ArmyService:
 
     def __init__(self, db: Session):
@@ -18,24 +19,19 @@ class ArmyService:
         self.detachment_repository = DetachmentRepository(db)
         self.user_repository = UserRepository(db)
 
-    def get_all(self):
-        return self.army_repository.get_all()
+    def get_by_user(self, user_id: int):
+        return self.army_repository.get_by_user(user_id)
 
-    def get_one(self, army_id: int):
-        army = self.army_repository.get_one(army_id)
+    def get_one(self, army_id: int, user_id: int):
+        army = self.army_repository.get_one_by_user(
+            army_id,
+            user_id
+        )
 
         if army is None:
             raise ValueError("Army not found")
 
         return army
-
-    def get_by_user(self, user_id: int):
-        user = self.user_repository.get_one(user_id)
-
-        if user is None:
-            raise ValueError("User not found")
-
-        return self.army_repository.get_by_user(user_id)
 
     def create(
         self,
@@ -89,8 +85,16 @@ class ArmyService:
 
         return self.army_repository.insert(army)
 
-    def update_name(self, army_id: int, name: str):
-        army = self.army_repository.get_one(army_id)
+    def update_name(
+        self,
+        army_id: int,
+        user_id: int,
+        name: str
+    ):
+        army = self.army_repository.get_one_by_user(
+            army_id,
+            user_id
+        )
 
         if army is None:
             raise ValueError("Army not found")
@@ -100,7 +104,7 @@ class ArmyService:
 
         existing_army = self.army_repository.get_by_name_and_user(
             name.strip(),
-            army.user_id
+            user_id
         )
 
         if (
@@ -113,43 +117,55 @@ class ArmyService:
 
         return self.army_repository.update(army)
 
-    def get_total_points(self, army_id: int):
-        army = self.army_repository.get_one(army_id)
+    def get_total_points(self, army_id: int, user_id: int):
+        army = self.army_repository.get_one_by_user(
+            army_id,
+            user_id
+        )
 
         if army is None:
             raise ValueError("Army not found")
 
-        army_units = self.army_unit_repository.get_by_army(army_id)
+        army_units = self.army_unit_repository.get_by_army(
+            army_id
+        )
 
         total_points = 0
 
         for army_unit in army_units:
             total_points += (
-                army_unit.unit.points * army_unit.quantity
-            )                                          # models
+                army_unit.unit.points *
+                army_unit.quantity
+            )                                         # models
 
         return total_points
 
-    def validate_army(self, army_id: int):
-        army = self.army_repository.get_one(army_id)
+    def validate_army(self, army_id: int, user_id: int):
+        army = self.army_repository.get_one_by_user(
+            army_id,
+            user_id
+        )
 
         if army is None:
             raise ValueError("Army not found")
 
-        army_units = self.army_unit_repository.get_by_army(army_id)
+        army_units = self.army_unit_repository.get_by_army(
+            army_id
+        )
 
         errors = []
         total_points = 0
         warlord_count = 0
 
-
         for army_unit in army_units:
-
             unit = army_unit.unit
 
-            total_points += unit.points * army_unit.quantity
+            total_points += (
+                unit.points *
+                army_unit.quantity
+            )
 
-            if unit.faction_id != army.faction_id:   # not needed, done anyway // react bypass
+            if unit.faction_id != army.faction_id:     # not needed, done anyway // react bypass
                 errors.append(
                     f"{unit.name} does not belong to the army faction"
                 )
@@ -157,7 +173,7 @@ class ArmyService:
             if (
                 unit.type == "Character"
                 and army_unit.quantity > 3
-            ):                            # intentional, for invalid army
+            ):                                         # intentional, for invalid army
                 errors.append(
                     f"{unit.name} exceeds the Character limit of 3"
                 )
@@ -165,7 +181,7 @@ class ArmyService:
             if army_unit.is_warlord:
                 warlord_count += 1
 
-                if unit.type != "Character":   # not needed, done anyway, again.
+                if unit.type != "Character":           # not needed, done anyway, again.
                     errors.append(
                         "Warlord must be a Character"
                     )
@@ -180,10 +196,8 @@ class ArmyService:
         if warlord_count == 0:
             errors.append("Army must have a Warlord")
 
-        if warlord_count > 1:                           # not needed, done anyway, again and again.
-            errors.append(
-                "Army can only have one Warlord"
-            )
+        if warlord_count > 1:                          # not needed, done anyway, again and again.
+            errors.append("Army can only have one Warlord")
 
         return {
             "valid": len(errors) == 0,
@@ -191,11 +205,15 @@ class ArmyService:
             "errors": errors
         }
 
-    def delete(self, army_id: int):
-        army = self.army_repository.get_one(army_id)
+    def delete(self, army_id: int, user_id: int):
+        army = self.army_repository.get_one_by_user(
+            army_id,
+            user_id
+        )
 
         if army is None:
             raise ValueError("Army not found")
 
         return self.army_repository.delete(army_id)
-    
+
+    # i have changed this file 100 times, if i do it again, this will get deleted, sent help.
