@@ -16,12 +16,18 @@ class ArmyRepository:
             Army.id == army_id
         ).first()
 
+    def get_one_by_user(self, army_id: int, user_id: int):
+        return self.db.query(Army).filter(
+            Army.id == army_id,
+            Army.user_id == user_id
+        ).first()
+
     def get_by_user(self, user_id: int):
         return self.db.query(Army).filter(
             Army.user_id == user_id
         ).all()
 
-    def get_by_name_and_user(self, name: str, user_id: int):  #DUPLICATE NAME PER USER VALIDATION!!!!!
+    def get_by_name_and_user(self, name: str, user_id: int): #DUPLICATE NAME PER USER VALIDATION!!!!! WAS STUCK HERE FOR A WEEK
         return self.db.query(Army).filter(
             Army.name == name,
             Army.user_id == user_id
@@ -31,13 +37,11 @@ class ArmyRepository:
         self.db.add(army)
         self.db.commit()
         self.db.refresh(army)
-
         return army
 
     def update(self, army: Army):
         self.db.commit()
         self.db.refresh(army)
-
         return army
 
     def delete(self, army_id: int):
@@ -50,3 +54,5 @@ class ArmyRepository:
         self.db.commit()
 
         return True
+
+    
