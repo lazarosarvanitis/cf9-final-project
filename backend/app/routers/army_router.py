@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 from starlette import status
 
 from app.database import get_db
+from app.routers.auth_router import user_dependency
 from app.schemas.army_schema import (
     ArmyCreate,
     ArmyRename,
@@ -14,13 +15,11 @@ from app.schemas.army_schema import (
 from app.services.army_service import ArmyService
 
 
-#GET /api/armies/1/validation
 
 router = APIRouter(
     prefix="/api/armies",
     tags=["Armies"]
 )
-
 
 db_dependency = Annotated[Session, Depends(get_db)]
 
@@ -30,31 +29,15 @@ db_dependency = Annotated[Session, Depends(get_db)]
     response_model=list[ArmyResponse],
     status_code=status.HTTP_200_OK
 )
-async def get_all_armies(db: db_dependency):
+async def get_my_armies(
+    db: db_dependency,
+    user: user_dependency
+):
     service = ArmyService(db)
 
-    return service.get_all()
-
-
-
-@router.get( 
-    "/user/{user_id}",
-    response_model=list[ArmyResponse], 
-    status_code=status.HTTP_200_OK
-)
-async def get_armies_by_user(
-    db: db_dependency,
-    user_id: int = Path(gt=0) 
-):
-    service = ArmyService(db) 
-
-    try:
-        return service.get_by_user(user_id)
-    except ValueError as error:  
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=str(error)
-        )
+    return service.get_by_user(
+        user["user_id"]
+    )
 
 
 @router.get(
@@ -64,12 +47,17 @@ async def get_armies_by_user(
 )
 async def get_army(
     db: db_dependency,
+    user: user_dependency,
     army_id: int = Path(gt=0)
 ):
     service = ArmyService(db)
 
     try:
-        return service.get_one(army_id)
+        return service.get_one(
+            army_id,
+            user["user_id"]
+        )
+
     except ValueError as error:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -84,7 +72,8 @@ async def get_army(
 )
 async def create_army(
     db: db_dependency,
-    army_request: ArmyCreate
+    army_request: ArmyCreate,
+    user: user_dependency
 ):
     service = ArmyService(db)
 
@@ -92,10 +81,11 @@ async def create_army(
         return service.create(
             army_request.name,
             army_request.points_limit,
-            army_request.user_id,
+            user["user_id"],
             army_request.faction_id,
             army_request.detachment_id
         )
+
     except ValueError as error:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -111,6 +101,7 @@ async def create_army(
 async def update_army_name(
     db: db_dependency,
     army_request: ArmyRename,
+    user: user_dependency,
     army_id: int = Path(gt=0)
 ):
     service = ArmyService(db)
@@ -118,8 +109,10 @@ async def update_army_name(
     try:
         return service.update_name(
             army_id,
+            user["user_id"],
             army_request.name
         )
+
     except ValueError as error:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -134,12 +127,17 @@ async def update_army_name(
 )
 async def validate_army(
     db: db_dependency,
+    user: user_dependency,
     army_id: int = Path(gt=0)
 ):
     service = ArmyService(db)
 
     try:
-        return service.validate_army(army_id)
+        return service.validate_army(
+            army_id,
+            user["user_id"]
+        )
+
     except ValueError as error:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -153,16 +151,21 @@ async def validate_army(
 )
 async def delete_army(
     db: db_dependency,
+    user: user_dependency,
     army_id: int = Path(gt=0)
 ):
     service = ArmyService(db)
 
     try:
-        service.delete(army_id)
+        service.delete(
+            army_id,
+            user["user_id"]
+        )
+
     except ValueError as error:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=str(error)
         )
 
-
+    

@@ -5,15 +5,16 @@ from sqlalchemy.orm import Session
 from starlette import status
 
 from app.database import get_db
+from app.routers.auth_router import admin_dependency
 from app.schemas.unit_schema import UnitCreate, UnitResponse
 from app.services.unit_service import UnitService
+
 
 #GET /api/units
 router = APIRouter(
     prefix="/api/units",
     tags=["Units"]
 )
-
 
 db_dependency = Annotated[Session, Depends(get_db)]
 
@@ -25,28 +26,7 @@ db_dependency = Annotated[Session, Depends(get_db)]
 )
 async def get_all_units(db: db_dependency):
     service = UnitService(db)
-
     return service.get_all()
-
-
-@router.get(
-    "/{unit_id}",
-    response_model=UnitResponse,
-    status_code=status.HTTP_200_OK
-)
-async def get_unit(
-    db: db_dependency,
-    unit_id: int = Path(gt=0)
-):
-    service = UnitService(db)
-
-    try:
-        return service.get_one(unit_id)
-    except ValueError as error:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=str(error)
-        )
 
 
 @router.get(
@@ -62,6 +42,28 @@ async def get_units_by_faction(
 
     try:
         return service.get_by_faction(faction_id)
+
+    except ValueError as error:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(error)
+        )
+
+
+@router.get(
+    "/{unit_id}",
+    response_model=UnitResponse,
+    status_code=status.HTTP_200_OK
+)
+async def get_unit(
+    db: db_dependency,
+    unit_id: int = Path(gt=0)
+):
+    service = UnitService(db)
+
+    try:
+        return service.get_one(unit_id)
+
     except ValueError as error:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -76,7 +78,8 @@ async def get_units_by_faction(
 )
 async def create_unit(
     db: db_dependency,
-    unit_request: UnitCreate
+    unit_request: UnitCreate,
+    _admin: admin_dependency
 ):
     service = UnitService(db)
 
@@ -87,11 +90,13 @@ async def create_unit(
             unit_request.points,
             unit_request.faction_id
         )
+
     except ValueError as error:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(error)
         )
+
 
 
 @router.delete(
@@ -100,12 +105,14 @@ async def create_unit(
 )
 async def delete_unit(
     db: db_dependency,
+    _admin: admin_dependency,
     unit_id: int = Path(gt=0)
 ):
     service = UnitService(db)
 
     try:
         service.delete(unit_id)
+
     except ValueError as error:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
