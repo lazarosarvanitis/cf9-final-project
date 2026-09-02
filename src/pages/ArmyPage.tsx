@@ -1,4 +1,4 @@
-import {useState} from "react";
+import {useEffect, useState} from "react";
 import {useNavigate, useParams} from "react-router";
 import {
     ArrowLeft,
@@ -13,253 +13,854 @@ import {
     X
 } from "lucide-react";
 
-type Unit = {
+import {
+    addArmyUnit,
+    deleteArmy,
+    deleteArmyWarlord,
+    deleteRegularArmyUnitCopies,
+    getArmy,
+    getArmyUnits,
+    getDetachments,
+    getFactions,
+    getUnitsByFaction,
+    removeArmyWarlord,
+    removeOneArmyUnit,
+    renameArmy,
+    setArmyWarlord,
+    validateArmy
+} from "../services/armyService";
+
+import type {
+    ArmyUnitResponse,
+    UnitResponse
+} from "../services/armyService";
+
+
+type ArmyView = {
     id: number;
     name: string;
-    type: string;
-    points: number;
+    faction: string;
+    detachment: string;
+    pointsLimit: number;
+    factionId: number;
+    detachmentId: number;
 }
 
-type ArmyUnit = Unit & {
+
+type ArmyUnit = UnitResponse & {
     quantity: number;
 }
+
+
+// STATIC DATA
+
+type FactionTheme = {
+    text: string;
+    border: string;
+    background: string;
+    pageBackground: string;
+    button: string;
+    progress: string;
+}
+
+
+const factionThemes: Record<string, FactionTheme> = {
+
+    "Grey Knights": {
+        text: "text-sky-300",
+        border: "border-sky-700/50",
+        background: "bg-sky-950/40",
+        pageBackground: "bg-[#15191e]",
+        button: "hover:border-sky-500 hover:text-sky-300",
+        progress: "bg-sky-500"
+    },
+
+    "Adeptus Custodes": {
+        text: "text-[#f0cf6a]",
+        border: "border-[#9b7828]/60",
+        background: "bg-[#30250d]",
+        pageBackground: "bg-[#191409]",
+        button: "hover:border-[#e0b84f] hover:text-[#f5dc8a]",
+        progress: "bg-[#e0b84f]"
+    },
+
+    "Aeldari": {
+        text: "text-[#e6dcc3]",
+        border: "border-violet-700/40",
+        background: "bg-[#211a2b]",
+        pageBackground: "bg-[#15121d]",
+        button: "hover:border-[#d8c99f] hover:text-[#e6dcc3]",
+        progress: "bg-[#d8c99f]"
+    }
+
+}
+
+
+const defaultFactionTheme: FactionTheme = {
+    text: "text-gray-300",
+    border: "border-gray-700/50",
+    background: "bg-gray-900/40",
+    pageBackground: "bg-[#0d0f12]",
+    button: "hover:border-gray-500 hover:text-white",
+    progress: "bg-gray-500"
+}
+
+
+// HELPER FUNCTIONS
+
+const getFactionTheme = (
+    faction: string
+) => {
+
+    return (
+        factionThemes[faction] ??
+        defaultFactionTheme
+    );
+}
+
+
+const mapArmyUnits = (
+    armyUnits: ArmyUnitResponse[]
+): ArmyUnit[] => {
+
+    return armyUnits.map((armyUnit) => ({
+        ...armyUnit.unit,
+        quantity: armyUnit.quantity
+    }));
+}
+
+
+const getWarlordUnitId = (
+    armyUnits: ArmyUnitResponse[]
+) => {
+
+    const warlord = armyUnits.find(
+        (armyUnit) =>
+            armyUnit.is_warlord
+    );
+
+
+    return warlord?.unit_id ?? null;
+}
+
 
 const ArmyPage = () => {
 
     const navigate = useNavigate();
+
     const {armyId} = useParams();
 
-    const armies = [
-        {
-            id: 1,
-            name: "Titan's Wrath",
-            faction: "Grey Knights",
-            detachment: "Banishers",
-            pointsLimit: 2000
-        },
-        {
-            id: 2,
-            name: "Golden Host",
-            faction: "Adeptus Custodes",
-            detachment: "Lions of the Emperor",
-            pointsLimit: 2000
-        },
-        {
-            id: 3,
-            name: "Exodites",
-            faction: "Aeldari",
-            detachment: "Aspect Host",
-            pointsLimit: 2000
-        }
-    ]
+    const parsedArmyId =
+        Number(armyId);
 
 
-    const greyKnightsUnits: Unit[] = [
-        {
-            id: 1,
-            name: "Brotherhood Librarian",
-            type: "Character",
-            points: 120
-        },
-        {
-            id: 2,
-            name: "Strike Squad",
-            type: "Battleline",
-            points: 120
-        },
-        {
-            id: 3,
-            name: "Terminator Squad",
-            type: "Infantry",
-            points: 200
-        },
-        {
-            id: 4,
-            name: "Paladin Squad",
-            type: "Infantry",
-            points: 225
-        },
-        {
-            id: 5,
-            name: "Nemesis Dreadknight",
-            type: "Vehicle",
-            points: 210
-        }
-    ]
+    // STATE
+
+    const [army, setArmy] =
+        useState<ArmyView | null>(null);
+
+    const [factionUnits, setFactionUnits] =
+        useState<UnitResponse[]>([]);
+
+    const [armyUnits, setArmyUnits] =
+        useState<ArmyUnit[]>([]);
+
+    const [warlordUnitId, setWarlordUnitId] =
+        useState<number | null>(null);
+
+    const [search, setSearch] =
+        useState("");
+
+    const [isEditingName, setIsEditingName] =
+        useState(false);
+
+    const [armyName, setArmyName] =
+        useState("");
+
+    const [editedArmyName, setEditedArmyName] =
+        useState("");
+
+    const [loading, setLoading] =
+        useState(true);
+
+    const [error, setError] =
+        useState("");
 
 
-    const custodesUnits: Unit[] = [
-        {
-            id: 6,
-            name: "Blade Champion",
-            type: "Character",
-            points: 120
-        },
-        {
-            id: 7,
-            name: "Custodian Guard",
-            type: "Battleline",
-            points: 180
-        },
-        {
-            id: 8,
-            name: "Custodian Wardens",
-            type: "Infantry",
-            points: 250
-        },
-        {
-            id: 9,
-            name: "Allarus Custodians",
-            type: "Infantry",
-            points: 160
-        },
-        {
-            id: 10,
-            name: "Vertus Praetors",
-            type: "Mounted",
-            points: 180
-        }
-    ]
+    useEffect(() => {
+
+        const loadArmy = async () => {
+
+            if (
+                !Number.isInteger(parsedArmyId) ||
+                parsedArmyId <= 0
+            ) {
+                setError("Army not found");
+                setLoading(false);
+
+                return;
+            }
 
 
-    const aeldariUnits: Unit[] = [
-        {
-            id: 11,
-            name: "Autarch",
-            type: "Character",
-            points: 100
-        },
-        {
-            id: 12,
-            name: "Avatar of Khaine",
-            type: "Monster",
-            points: 335
-        },
-        {
-            id: 13,
-            name: "Dire Avengers",
-            type: "Aspect Warriors",
-            points: 140
-        },
-        {
-            id: 14,
-            name: "Howling Banshees",
-            type: "Aspect Warriors",
-            points: 120
-        },
-        {
-            id: 15,
-            name: "Fire Dragons",
-            type: "Aspect Warriors",
-            points: 130
-        },
-        {
-            id: 16,
-            name: "Striking Scorpions",
-            type: "Aspect Warriors",
-            points: 120
-        },
-        {
-            id: 17,
-            name: "Dark Reapers",
-            type: "Aspect Warriors",
-            points: 130
-        },
-        {
-            id: 18,
-            name: "Swooping Hawks",
-            type: "Aspect Warriors",
-            points: 140
-        },
-        {
-            id: 19,
-            name: "Warp Spiders",
-            type: "Aspect Warriors",
-            points: 140
-        },
-        {
-            id: 20,
-            name: "Shining Spears",
-            type: "Aspect Warriors",
-            points: 150
-        }
-    ]
+            try {
+
+                const [
+                    armyData,
+                    factions,
+                    detachments
+                ] = await Promise.all([
+                    getArmy(parsedArmyId),
+                    getFactions(),
+                    getDetachments()
+                ]);
 
 
-    const getAvailableUnits = (faction: string) => {
+                const [
+                    availableUnits,
+                    currentArmyUnits
+                ] = await Promise.all([
+                    getUnitsByFaction(
+                        armyData.faction_id
+                    ),
+                    getArmyUnits(
+                        parsedArmyId
+                    )
+                ]);
 
-        if (faction === "Grey Knights") {
-            return greyKnightsUnits;
+
+                const faction =
+                    factions.find(
+                        (faction) =>
+                            faction.id ===
+                            armyData.faction_id
+                    );
+
+
+                const detachment =
+                    detachments.find(
+                        (detachment) =>
+                            detachment.id ===
+                            armyData.detachment_id
+                    );
+
+
+                const loadedArmy: ArmyView = {
+                    id: armyData.id,
+                    name: armyData.name,
+                    faction:
+                        faction?.name ??
+                        "Unknown Faction",
+                    detachment:
+                        detachment?.name ??
+                        "Unknown Detachment",
+                    pointsLimit:
+                        armyData.points_limit,
+                    factionId:
+                        armyData.faction_id,
+                    detachmentId:
+                        armyData.detachment_id
+                };
+
+
+                setArmy(loadedArmy);
+
+                setArmyName(
+                    loadedArmy.name
+                );
+
+                setEditedArmyName(
+                    loadedArmy.name
+                );
+
+                setFactionUnits(
+                    availableUnits
+                );
+
+                setArmyUnits(
+                    mapArmyUnits(
+                        currentArmyUnits
+                    )
+                );
+
+                setWarlordUnitId(
+                    getWarlordUnitId(
+                        currentArmyUnits
+                    )
+                );
+
+            } catch (error) {
+
+                if (error instanceof Error) {
+                    setError(error.message);
+                } else {
+                    setError(
+                        "Could not load army"
+                    );
+                }
+
+            } finally {
+                setLoading(false);
+            }
         }
 
-        if (faction === "Adeptus Custodes") {
-            return custodesUnits;
-        }
 
-        if (faction === "Aeldari") {
-            return aeldariUnits;
-        }
+        loadArmy();
 
-        return [];
+    }, [parsedArmyId]);
+
+
+    // VALIDATION
+
+    const currentPoints =
+        armyUnits.reduce(
+            (total, unit) =>
+                total +
+                (
+                    unit.points *
+                    unit.quantity
+                ),
+            0
+        );
+
+
+    const pointsLimit =
+        army?.pointsLimit ?? 0;
+
+
+    const remainingPoints =
+        pointsLimit - currentPoints;
+
+
+    const pointsPercentage =
+        pointsLimit > 0
+            ? Math.min(
+                (
+                    currentPoints /
+                    pointsLimit
+                ) * 100,
+                100
+            )
+            : 0;
+
+
+    const pointsOver =
+        currentPoints > pointsLimit
+            ? currentPoints -
+              pointsLimit
+            : 0;
+
+
+    const hasWarlord =
+        warlordUnitId !== null;
+
+
+    const pointsValid =
+        currentPoints <= pointsLimit;
+
+
+    const unitLimitsValid =
+        armyUnits.every((unit) => {
+
+            if (
+                unit.type === "Character"
+            ) {
+                return unit.quantity <= 3;
+            }
+
+
+            return true;
+        });
+
+
+    const armyValid =
+        hasWarlord &&
+        pointsValid &&
+        unitLimitsValid;
+
+
+    const getUnitQuantity = (
+        unitId: number
+    ) => {
+
+        const armyUnit =
+            armyUnits.find(
+                (unit) =>
+                    unit.id === unitId
+            );
+
+
+        return armyUnit?.quantity ?? 0;
     }
 
 
-    const getFactionTheme = (faction: string) => {
+    // SORTING
 
-        if (faction === "Grey Knights") {
-            return {
-                text: "text-sky-300",
-                border: "border-sky-700/50",
-                background: "bg-sky-950/40",
-                pageBackground: "bg-[#15191e]",
-                button: "hover:border-sky-500 hover:text-sky-300",
-                progress: "bg-sky-500"
+    const sortedAvailableUnits =
+        [...factionUnits]
+            .sort((a, b) => {
+
+                if (
+                    a.type === "Character" &&
+                    b.type !== "Character"
+                ) {
+                    return -1;
+                }
+
+
+                if (
+                    a.type !== "Character" &&
+                    b.type === "Character"
+                ) {
+                    return 1;
+                }
+
+
+                return a.name.localeCompare(
+                    b.name
+                );
+            })
+            .filter((unit) =>
+                unit.name
+                    .toLowerCase()
+                    .includes(
+                        search.toLowerCase()
+                    ) ||
+                unit.type
+                    .toLowerCase()
+                    .includes(
+                        search.toLowerCase()
+                    )
+            );
+
+
+    const sortedArmyUnits =
+        [...armyUnits].sort((a, b) => {
+
+            if (
+                a.type === "Character" &&
+                b.type !== "Character"
+            ) {
+                return -1;
             }
-        }
 
-        if (faction === "Adeptus Custodes") {
-            return {
-                text: "text-[#f0cf6a]",
-                border: "border-[#9b7828]/60",
-                background: "bg-[#30250d]",
-                pageBackground: "bg-[#191409]",
-                button: "hover:border-[#e0b84f] hover:text-[#f5dc8a]",
-                progress: "bg-[#e0b84f]"
+
+            if (
+                a.type !== "Character" &&
+                b.type === "Character"
+            ) {
+                return 1;
             }
-        }
 
-        if (faction === "Aeldari") {
-            return {
-                text: "text-[#e6dcc3]",
-                border: "border-violet-700/40",
-                background: "bg-[#211a2b]",
-                pageBackground: "bg-[#15121d]",
-                button: "hover:border-[#d8c99f] hover:text-[#e6dcc3]",
-                progress: "bg-[#d8c99f]"
-            }
-        }
 
-        return {
-            text: "text-gray-300",
-            border: "border-gray-700/50",
-            background: "bg-gray-900/40",
-            pageBackground: "bg-[#0d0f12]",
-            button: "hover:border-gray-500 hover:text-white",
-            progress: "bg-gray-500"
+            return a.name.localeCompare(
+                b.name
+            );
+        });
+
+
+    // HANDLERS
+
+    const updateArmyUnits = (
+        updatedArmyUnits:
+            ArmyUnitResponse[]
+    ) => {
+
+        setArmyUnits(
+            mapArmyUnits(
+                updatedArmyUnits
+            )
+        );
+
+
+        setWarlordUnitId(
+            getWarlordUnitId(
+                updatedArmyUnits
+            )
+        );
+    }
+
+
+    const handleError = (
+        caughtError: unknown
+    ) => {
+
+        if (
+            caughtError instanceof Error
+        ) {
+            setError(
+                caughtError.message
+            );
+        } else {
+            setError(
+                "Something went wrong"
+            );
         }
     }
 
 
-    const army = armies.find(
-        (army) => army.id === Number(armyId)
-    );
+    const handleAddUnit = async (
+        unit: UnitResponse
+    ) => {
 
-    const [armyUnits, setArmyUnits] = useState<ArmyUnit[]>([]);
-    const [warlordUnitId, setWarlordUnitId] = useState<number | null>(null);
-    const [search, setSearch] = useState("");
-    const [isEditingName, setIsEditingName] = useState(false);
-    const [armyName, setArmyName] = useState(army?.name ?? "");
-    const [editedArmyName, setEditedArmyName] = useState(army?.name ?? "");
+        if (!army) {
+            return;
+        }
+
+
+        setError("");
+
+
+        try {
+
+            const updatedArmyUnits =
+                await addArmyUnit(
+                    army.id,
+                    unit.id
+                );
+
+
+            updateArmyUnits(
+                updatedArmyUnits
+            );
+
+        } catch (error) {
+            handleError(error);
+        }
+    }
+
+
+    const handleRemoveOne = async (
+        unitId: number
+    ) => {
+
+        if (!army) {
+            return;
+        }
+
+
+        setError("");
+
+
+        try {
+
+            const updatedArmyUnits =
+                await removeOneArmyUnit(
+                    army.id,
+                    unitId
+                );
+
+
+            updateArmyUnits(
+                updatedArmyUnits
+            );
+
+        } catch (error) {
+            handleError(error);
+        }
+    }
+
+
+    const handleDeleteRegularCopies =
+        async (
+            unitId: number
+        ) => {
+
+            if (!army) {
+                return;
+            }
+
+
+            setError("");
+
+
+            try {
+
+                const updatedArmyUnits =
+                    await deleteRegularArmyUnitCopies(
+                        army.id,
+                        unitId
+                    );
+
+
+                updateArmyUnits(
+                    updatedArmyUnits
+                );
+
+            } catch (error) {
+                handleError(error);
+            }
+        }
+
+
+    const handleDeleteWarlord =
+        async () => {
+
+            if (!army) {
+                return;
+            }
+
+
+            setError("");
+
+
+            try {
+
+                const updatedArmyUnits =
+                    await deleteArmyWarlord(
+                        army.id
+                    );
+
+
+                updateArmyUnits(
+                    updatedArmyUnits
+                );
+
+            } catch (error) {
+                handleError(error);
+            }
+        }
+
+
+    const handleSetWarlord = async (
+        unit: ArmyUnit
+    ) => {
+
+        if (!army) {
+            return;
+        }
+
+
+        if (
+            unit.type !== "Character"
+        ) {
+            alert(
+                "Only a Character can be selected as Warlord."
+            );
+
+            return;
+        }
+
+
+        setError("");
+
+
+        try {
+
+            const updatedArmyUnits =
+                await setArmyWarlord(
+                    army.id,
+                    unit.id
+                );
+
+
+            updateArmyUnits(
+                updatedArmyUnits
+            );
+
+        } catch (error) {
+            handleError(error);
+        }
+    }
+
+
+    const handleRemoveWarlord =
+        async () => {
+
+            if (!army) {
+                return;
+            }
+
+
+            setError("");
+
+
+            try {
+
+                const updatedArmyUnits =
+                    await removeArmyWarlord(
+                        army.id
+                    );
+
+
+                updateArmyUnits(
+                    updatedArmyUnits
+                );
+
+            } catch (error) {
+                handleError(error);
+            }
+        }
+
+
+    const handleSaveArmy = async () => {
+
+        if (!army) {
+            return;
+        }
+
+
+        if (!armyValid) {
+
+            alert(
+                "The army must be valid before it can be saved."
+            );
+
+            return;
+        }
+
+
+        setError("");
+
+
+        try {
+
+            const validation =
+                await validateArmy(
+                    army.id
+                );
+
+
+            if (!validation.valid) {
+
+                alert(
+                    validation.errors.join("\n")
+                );
+
+                return;
+            }
+
+
+            alert(
+                "Army saved successfully."
+            );
+
+        } catch (error) {
+            handleError(error);
+        }
+    }
+
+
+    const handleStartRename = () => {
+
+        setEditedArmyName(
+            armyName
+        );
+
+        setIsEditingName(true);
+    }
+
+
+    const handleSaveName = async () => {
+
+        if (!army) {
+            return;
+        }
+
+
+        if (
+            !editedArmyName.trim()
+        ) {
+
+            alert(
+                "Army name cannot be empty."
+            );
+
+            return;
+        }
+
+
+        setError("");
+
+
+        try {
+
+            const updatedArmy =
+                await renameArmy(
+                    army.id,
+                    editedArmyName.trim()
+                );
+
+
+            setArmyName(
+                updatedArmy.name
+            );
+
+
+            setArmy({
+                ...army,
+                name: updatedArmy.name
+            });
+
+
+            setIsEditingName(false);
+
+        } catch (error) {
+            handleError(error);
+        }
+    }
+
+
+    const handleCancelRename = () => {
+
+        setEditedArmyName(
+            armyName
+        );
+
+        setIsEditingName(false);
+    }
+
+
+    const handleDeleteArmy = async () => {
+
+        if (!army) {
+            return;
+        }
+
+
+        const confirmDelete =
+            window.confirm(
+                `Are you sure you want to delete ${armyName}?`
+            );
+
+
+        if (!confirmDelete) {
+            return;
+        }
+
+
+        setError("");
+
+
+        try {
+
+            await deleteArmy(
+                army.id
+            );
+
+
+            navigate("/");
+
+        } catch (error) {
+            handleError(error);
+        }
+    }
+
+
+    // PAGE CONTENT
+
+    if (loading) {
+
+        return (
+            <div className="mx-auto max-w-[1300px] px-6 py-8">
+
+                <p className="text-muted">
+                    Loading army...
+                </p>
+
+            </div>
+        )
+    }
+
 
     if (!army) {
 
@@ -270,365 +871,30 @@ const ArmyPage = () => {
                     Army not found
                 </h1>
 
+                {error && (
+                    <p className="mt-3 text-sm text-red-400">
+                        {error}
+                    </p>
+                )}
+
+                <button
+                    onClick={() =>
+                        navigate("/")
+                    }
+                    className="mt-6 cursor-pointer text-sm text-muted hover:text-white"
+                >
+                    Back to My Armies
+                </button>
+
             </div>
         )
     }
 
-    const factionUnits = getAvailableUnits(army.faction);
 
-    const theme = getFactionTheme(army.faction);
-
-
-    const currentPoints = armyUnits.reduce(
-        (total, unit) => total + (unit.points * unit.quantity),
-        0
-    );
-
-
-    const remainingPoints =
-        army.pointsLimit - currentPoints;
-
-
-    const pointsPercentage = Math.min(
-        (currentPoints / army.pointsLimit) * 100,
-        100
-    );
-
-
-    const pointsOver =
-        currentPoints > army.pointsLimit
-            ? currentPoints - army.pointsLimit
-            : 0;
-
-
-    const hasWarlord =
-        warlordUnitId !== null;
-
-
-    const pointsValid =
-        currentPoints <= army.pointsLimit;
-
-
-    const unitLimitsValid = armyUnits.every((unit) => {
-
-        if (unit.type === "Character") {
-            return unit.quantity <= 3;
-        }
-
-        return true;
-    });
-
-
-    const armyValid =
-        hasWarlord &&
-        pointsValid &&
-        unitLimitsValid;
-
-
-    const getUnitQuantity = (unitId: number) => {
-
-        const armyUnit = armyUnits.find(
-            (unit) => unit.id === unitId
+    const theme =
+        getFactionTheme(
+            army.faction
         );
-
-        return armyUnit?.quantity ?? 0;
-    }
-
-
-    const sortedAvailableUnits = [...factionUnits]
-        .sort((a, b) => {
-
-            if (
-                a.type === "Character" &&
-                b.type !== "Character"
-            ) {
-                return -1;
-            }
-
-            if (
-                a.type !== "Character" &&
-                b.type === "Character"
-            ) {
-                return 1;
-            }
-
-            return a.name.localeCompare(b.name);
-        })
-        .filter((unit) =>
-            unit.name
-                .toLowerCase()
-                .includes(search.toLowerCase()) ||
-            unit.type
-                .toLowerCase()
-                .includes(search.toLowerCase())
-        );
-
-
-    const sortedArmyUnits = [...armyUnits].sort((a, b) => {
-
-        if (
-            a.type === "Character" &&
-            b.type !== "Character"
-        ) {
-            return -1;
-        }
-
-        if (
-            a.type !== "Character" &&
-            b.type === "Character"
-        ) {
-            return 1;
-        }
-
-        return a.name.localeCompare(b.name);
-    });
-
-
-    const handleAddUnit = (unit: Unit) => {
-
-        const existingUnit = armyUnits.find(
-            (armyUnit) => armyUnit.id === unit.id
-        );
-
-
-        if (existingUnit) {
-
-            const updatedUnits = armyUnits.map((armyUnit) => {
-
-                if (armyUnit.id === unit.id) {
-
-                    return {
-                        ...armyUnit,
-                        quantity: armyUnit.quantity + 1
-                    }
-                }
-
-                return armyUnit;
-            });
-
-            setArmyUnits(updatedUnits);
-
-        } else {
-
-            setArmyUnits([
-                ...armyUnits,
-                {
-                    ...unit,
-                    quantity: 1
-                }
-            ]);
-        }
-    }
-
-
-    const handleRemoveOne = (unitId: number) => {
-
-        const armyUnit = armyUnits.find(
-            (unit) => unit.id === unitId
-        );
-
-        if (!armyUnit) {
-            return;
-        }
-
-
-        if (armyUnit.quantity === 1) {
-
-            handleDeleteUnit(unitId);
-            return;
-        }
-
-
-        const updatedUnits = armyUnits.map((unit) => {
-
-            if (unit.id === unitId) {
-
-                return {
-                    ...unit,
-                    quantity: unit.quantity - 1
-                }
-            }
-
-            return unit;
-        });
-
-
-        setArmyUnits(updatedUnits);
-    }
-
-
-    const handleDeleteUnit = (unitId: number) => {
-
-        const updatedUnits = armyUnits.filter(
-            (unit) => unit.id !== unitId
-        );
-
-
-        setArmyUnits(updatedUnits);
-
-
-        if (warlordUnitId === unitId) {
-            setWarlordUnitId(null);
-        }
-    }
-
-
-    const handleDeleteRegularCopies = (unitId: number) => {
-
-        if (warlordUnitId === unitId) {
-
-            const updatedUnits = armyUnits.map((unit) => {
-
-                if (unit.id === unitId) {
-
-                    return {
-                        ...unit,
-                        quantity: 1
-                    }
-                }
-
-                return unit;
-            });
-
-
-            setArmyUnits(updatedUnits);
-
-        } else {
-
-            handleDeleteUnit(unitId);
-        }
-    }
-
-
-    const handleDeleteWarlord = (unitId: number) => {
-
-        const armyUnit = armyUnits.find(
-            (unit) => unit.id === unitId
-        );
-
-
-        if (!armyUnit) {
-            return;
-        }
-
-
-        if (armyUnit.quantity === 1) {
-
-            const updatedUnits = armyUnits.filter(
-                (unit) => unit.id !== unitId
-            );
-
-            setArmyUnits(updatedUnits);
-
-        } else {
-
-            const updatedUnits = armyUnits.map((unit) => {
-
-                if (unit.id === unitId) {
-
-                    return {
-                        ...unit,
-                        quantity: unit.quantity - 1
-                    }
-                }
-
-                return unit;
-            });
-
-            setArmyUnits(updatedUnits);
-        }
-
-
-        setWarlordUnitId(null);
-    }
-
-
-    const handleSetWarlord = (unit: ArmyUnit) => {
-
-        if (unit.type !== "Character") {
-            alert("Only a Character can be selected as Warlord.");
-            return;
-        }
-
-        setWarlordUnitId(unit.id);
-    }
-
-
-    const handleRemoveWarlord = () => {
-        setWarlordUnitId(null);
-    }
-
-
-    const handleSaveArmy = () => {
-
-        if (!armyValid) {
-            alert("The army must be valid before it can be saved.");
-            return;
-        }
-
-
-        const savedArmy = {
-            id: army.id,
-            name: armyName,
-            faction: army.faction,
-            detachment: army.detachment,
-            pointsLimit: army.pointsLimit,
-            currentPoints,
-            warlordUnitId,
-            units: armyUnits
-        }
-
-
-        console.log("Saved Army:", savedArmy);
-
-        alert("Army saved successfully.");
-    }
-
-
-    const handleStartRename = () => {
-
-        setEditedArmyName(armyName);
-        setIsEditingName(true);
-    }
-
-
-    const handleSaveName = () => {
-
-        if (!editedArmyName.trim()) {
-            alert("Army name cannot be empty.");
-            return;
-        }
-
-        setArmyName(editedArmyName.trim());
-
-        setIsEditingName(false);
-    }
-
-
-    const handleCancelRename = () => {
-
-        setEditedArmyName(armyName);
-
-        setIsEditingName(false);
-    }
-
-
-    const handleDeleteArmy = () => {
-
-        const confirmDelete = window.confirm(
-            `Are you sure you want to delete ${armyName}?`
-        );
-
-
-        if (!confirmDelete) {
-            return;
-        }
-
-
-        console.log("Deleted army:", army.id);
-
-        navigate("/");
-    }
 
 
     return (
@@ -636,14 +902,16 @@ const ArmyPage = () => {
 
             <div className="mx-auto max-w-[1300px] px-6 py-8">
 
-
                 <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
 
                     <button
-                        onClick={() => navigate("/")}
+                        onClick={() =>
+                            navigate("/")
+                        }
                         className="flex cursor-pointer items-center gap-2 text-sm text-muted hover:text-white"
                     >
                         <ArrowLeft size={18}/>
+
                         Back to My Armies
                     </button>
 
@@ -657,9 +925,14 @@ const ArmyPage = () => {
                                     : "You can not save the army while the list is invalid."
                             }
                         >
+
                             <button
-                                onClick={handleSaveArmy}
-                                disabled={!armyValid}
+                                onClick={
+                                    handleSaveArmy
+                                }
+                                disabled={
+                                    !armyValid
+                                }
                                 className={`flex items-center gap-2 rounded-md border border-border bg-card px-4 py-2 text-sm transition ${
                                     armyValid
                                         ? `cursor-pointer ${theme.button}`
@@ -667,15 +940,21 @@ const ArmyPage = () => {
                                 }`}
                             >
                                 <Save size={17}/>
+
                                 Save Army
                             </button>
+
                         </span>
 
+
                         <button
-                            onClick={handleDeleteArmy}
+                            onClick={
+                                handleDeleteArmy
+                            }
                             className="flex cursor-pointer items-center gap-2 rounded-md border border-red-900/60 bg-red-950/30 px-4 py-2 text-sm text-red-300 transition hover:border-red-500 hover:bg-red-950/50"
                         >
                             <Trash2 size={17}/>
+
                             Delete
                         </button>
 
@@ -683,11 +962,22 @@ const ArmyPage = () => {
 
                 </div>
 
+
+                {error && (
+
+                    <div className="mb-6 rounded-md border border-red-800 bg-red-950/30 p-4 text-sm text-red-300">
+                        {error}
+                    </div>
+
+                )}
+
+
                 <div className={`mb-8 rounded-lg border p-6 ${theme.border} ${theme.background}`}>
 
                     <p className={`text-sm uppercase tracking-wider ${theme.text}`}>
                         {army.faction}
                     </p>
+
 
                     {!isEditingName && (
 
@@ -697,8 +987,11 @@ const ArmyPage = () => {
                                 {armyName}
                             </h1>
 
+
                             <button
-                                onClick={handleStartRename}
+                                onClick={
+                                    handleStartRename
+                                }
                                 className="cursor-pointer text-muted transition hover:text-white"
                             >
                                 <Pencil size={18}/>
@@ -715,16 +1008,22 @@ const ArmyPage = () => {
 
                             <input
                                 type="text"
-                                value={editedArmyName}
+                                value={
+                                    editedArmyName
+                                }
                                 onChange={(event) =>
-                                    setEditedArmyName(event.target.value)
+                                    setEditedArmyName(
+                                        event.target.value
+                                    )
                                 }
                                 className="w-full rounded-md border border-border bg-background px-3 py-2 text-white outline-none focus:border-gray-500"
                             />
 
 
                             <button
-                                onClick={handleSaveName}
+                                onClick={
+                                    handleSaveName
+                                }
                                 className="flex cursor-pointer items-center justify-center rounded-md border border-green-800 p-2 text-green-400 hover:bg-green-950/40"
                             >
                                 <Check size={18}/>
@@ -732,7 +1031,9 @@ const ArmyPage = () => {
 
 
                             <button
-                                onClick={handleCancelRename}
+                                onClick={
+                                    handleCancelRename
+                                }
                                 className="flex cursor-pointer items-center justify-center rounded-md border border-border p-2 text-muted hover:text-white"
                             >
                                 <X size={18}/>
@@ -867,7 +1168,12 @@ const ArmyPage = () => {
                             }`}
                         >
                             {Math.round(
-                                (currentPoints / army.pointsLimit) * 100
+                                pointsLimit > 0
+                                    ? (
+                                        currentPoints /
+                                        pointsLimit
+                                    ) * 100
+                                    : 0
                             )}%
                         </span>
 
@@ -883,7 +1189,8 @@ const ArmyPage = () => {
                                     : "bg-red-500"
                             }`}
                             style={{
-                                width: `${pointsPercentage}%`
+                                width:
+                                    `${pointsPercentage}%`
                             }}
                         />
 
@@ -928,6 +1235,7 @@ const ArmyPage = () => {
 
                             )}
 
+
                             <span
                                 className={`text-sm ${
                                     hasWarlord
@@ -961,6 +1269,7 @@ const ArmyPage = () => {
                                 />
 
                             )}
+
 
                             <span
                                 className={`text-sm ${
@@ -996,6 +1305,7 @@ const ArmyPage = () => {
 
                             )}
 
+
                             <span
                                 className={`text-sm ${
                                     unitLimitsValid
@@ -1017,7 +1327,6 @@ const ArmyPage = () => {
 
 
                 <div className="grid gap-8 lg:grid-cols-2">
-
 
                     <div>
 
@@ -1045,7 +1354,9 @@ const ArmyPage = () => {
                                 type="text"
                                 value={search}
                                 onChange={(event) =>
-                                    setSearch(event.target.value)
+                                    setSearch(
+                                        event.target.value
+                                    )
                                 }
                                 placeholder="Search units..."
                                 className="w-full rounded-md border border-border bg-card py-3 pl-10 pr-4 text-white outline-none transition focus:border-gray-500"
@@ -1059,7 +1370,9 @@ const ArmyPage = () => {
                             {sortedAvailableUnits.map((unit) => {
 
                                 const quantity =
-                                    getUnitQuantity(unit.id);
+                                    getUnitQuantity(
+                                        unit.id
+                                    );
 
                                 const characterLimitExceeded =
                                     unit.type === "Character" &&
@@ -1067,7 +1380,6 @@ const ArmyPage = () => {
 
 
                                 return (
-
                                     <div
                                         key={unit.id}
                                         className="flex items-center justify-between rounded-lg border border-border bg-card p-4 transition hover:bg-card-hover"
@@ -1129,7 +1441,9 @@ const ArmyPage = () => {
 
                                             <button
                                                 onClick={() =>
-                                                    handleAddUnit(unit)
+                                                    handleAddUnit(
+                                                        unit
+                                                    )
                                                 }
                                                 className={`flex cursor-pointer items-center justify-center rounded-md border border-border p-2 transition ${theme.button}`}
                                             >
@@ -1139,7 +1453,6 @@ const ArmyPage = () => {
                                         </div>
 
                                     </div>
-
                                 )
                             })}
 
@@ -1194,7 +1507,8 @@ const ArmyPage = () => {
                             {sortedArmyUnits.map((unit) => {
 
                                 const isWarlord =
-                                    warlordUnitId === unit.id;
+                                    warlordUnitId ===
+                                    unit.id;
 
                                 const regularQuantity =
                                     isWarlord
@@ -1207,12 +1521,10 @@ const ArmyPage = () => {
 
 
                                 return (
-
                                     <div
                                         key={unit.id}
                                         className="flex flex-col gap-3"
                                     >
-
 
                                         {isWarlord && (
 
@@ -1227,7 +1539,6 @@ const ArmyPage = () => {
                                                             <h3 className="font-medium">
                                                                 {unit.name}
                                                             </h3>
-
 
                                                             <span className="flex items-center gap-1 rounded-md bg-amber-950/60 px-2 py-1 text-xs font-semibold text-amber-300">
 
@@ -1261,17 +1572,20 @@ const ArmyPage = () => {
                                                 <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
 
                                                     <button
-                                                        onClick={handleRemoveWarlord}
+                                                        onClick={
+                                                            handleRemoveWarlord
+                                                        }
                                                         className="flex cursor-pointer items-center gap-2 rounded-md border border-border px-3 py-2 text-sm text-muted transition hover:border-amber-500 hover:text-amber-300"
                                                     >
                                                         <Crown size={16}/>
+
                                                         Remove Warlord
                                                     </button>
 
 
                                                     <button
-                                                        onClick={() =>
-                                                            handleDeleteWarlord(unit.id)
+                                                        onClick={
+                                                            handleDeleteWarlord
                                                         }
                                                         className="cursor-pointer text-muted transition hover:text-red-400"
                                                     >
@@ -1365,7 +1679,9 @@ const ArmyPage = () => {
 
                                                         <button
                                                             onClick={() =>
-                                                                handleRemoveOne(unit.id)
+                                                                handleRemoveOne(
+                                                                    unit.id
+                                                                )
                                                             }
                                                             className="flex cursor-pointer items-center justify-center rounded-md border border-border p-2 text-muted transition hover:text-white"
                                                         >
@@ -1386,7 +1702,9 @@ const ArmyPage = () => {
 
                                                         <button
                                                             onClick={() =>
-                                                                handleAddUnit(unit)
+                                                                handleAddUnit(
+                                                                    unit
+                                                                )
                                                             }
                                                             className={`flex cursor-pointer items-center justify-center rounded-md border border-border p-2 transition ${theme.button}`}
                                                         >
@@ -1396,7 +1714,9 @@ const ArmyPage = () => {
 
                                                         <button
                                                             onClick={() =>
-                                                                handleDeleteRegularCopies(unit.id)
+                                                                handleDeleteRegularCopies(
+                                                                    unit.id
+                                                                )
                                                             }
                                                             className="ml-2 cursor-pointer text-muted transition hover:text-red-400"
                                                         >
@@ -1411,11 +1731,14 @@ const ArmyPage = () => {
 
                                                             <button
                                                                 onClick={() =>
-                                                                    handleSetWarlord(unit)
+                                                                    handleSetWarlord(
+                                                                        unit
+                                                                    )
                                                                 }
                                                                 className="flex cursor-pointer items-center gap-2 rounded-md border border-border px-3 py-2 text-sm text-muted transition hover:border-amber-500 hover:text-amber-300"
                                                             >
                                                                 <Crown size={16}/>
+
                                                                 Make Warlord
                                                             </button>
 
@@ -1428,7 +1751,6 @@ const ArmyPage = () => {
                                         )}
 
                                     </div>
-
                                 )
                             })}
 
@@ -1444,4 +1766,7 @@ const ArmyPage = () => {
     )
 }
 
+
 export default ArmyPage;
+
+
