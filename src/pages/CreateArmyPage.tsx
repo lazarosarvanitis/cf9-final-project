@@ -1,53 +1,160 @@
-import {useState} from "react";
+import {useEffect, useState} from "react";
+import type {FormEvent} from "react";
+
 import {useNavigate} from "react-router";
 import {ArrowLeft} from "lucide-react";
+
+import {
+    createArmy,
+    getDetachments,
+    getFactions
+} from "../services/armyService";
+
+import type {
+    DetachmentResponse,
+    FactionResponse
+} from "../services/armyService";
+
 
 const CreateArmyPage = () => {
 
     const navigate = useNavigate();
 
-    const [name, setName] = useState("");
-    const [faction, setFaction] = useState("");
-    const [detachment, setDetachment] = useState("");
-    const [pointsLimit, setPointsLimit] = useState(2000);
 
-    const getDetachments = (selectedFaction: string) => {
+    const [name, setName] =
+        useState("");
 
-        if (selectedFaction === "Grey Knights") {
-            return ["Banishers"];
+    const [factionId, setFactionId] =
+        useState(0);
+
+    const [detachmentId, setDetachmentId] =
+        useState(0);
+
+    const [pointsLimit, setPointsLimit] =
+        useState(2000);
+
+
+    const [factions, setFactions] =
+        useState<FactionResponse[]>([]);
+
+    const [detachments, setDetachments] =
+        useState<DetachmentResponse[]>([]);
+
+
+    const [loading, setLoading] =
+        useState(true);
+
+    const [submitting, setSubmitting] =
+        useState(false);
+
+    const [error, setError] =
+        useState("");
+
+
+    useEffect(() => {
+
+        const loadData = async () => {
+
+            try {
+
+                const [
+                    factionData,
+                    detachmentData
+                ] = await Promise.all([
+                    getFactions(),
+                    getDetachments()
+                ]);
+
+
+                setFactions(factionData);
+
+                setDetachments(detachmentData);
+
+            } catch (error) {
+
+                if (error instanceof Error) {
+                    setError(error.message);
+                } else {
+                    setError("Could not load army data");
+                }
+
+            } finally {
+                setLoading(false);
+            }
         }
 
-        if (selectedFaction === "Adeptus Custodes") {
-            return ["Lions of the Emperor"];
-        }
 
-        if (selectedFaction === "Aeldari") {
-            return ["Aspect Host"];
-        }
+        loadData();
 
-        return [];
+    }, []);
+
+
+    const availableDetachments =
+        detachments.filter(
+            (detachment) =>
+                detachment.faction_id === factionId
+        );
+
+
+    const handleFactionChange = (
+        selectedFactionId: number
+    ) => {
+
+        setFactionId(selectedFactionId);
+
+        setDetachmentId(0);
     }
 
-    const handleFactionChange = (selectedFaction: string) => {
-        setFaction(selectedFaction);
-        setDetachment("");
-    }
 
-    const handleSubmit = (event: React.FormEvent) => {
+    const handleSubmit = async (
+        event: FormEvent<HTMLFormElement>
+    ) => {
 
         event.preventDefault();
 
-        const newArmy = {
-            name,
-            faction,
-            detachment,
-            pointsLimit
+
+        if (
+            factionId === 0 ||
+            detachmentId === 0
+        ) {
+            setError(
+                "Faction and detachment are required"
+            );
+
+            return;
         }
 
-        console.log(newArmy);
 
-        navigate("/");
+        setSubmitting(true);
+
+        setError("");
+
+
+        try {
+
+            await createArmy(
+                name,
+                pointsLimit,
+                factionId,
+                detachmentId
+            );
+
+
+            navigate("/");
+
+        } catch (error) {
+
+            if (error instanceof Error) {
+                setError(error.message);
+            } else {
+                setError("Could not create army");
+            }
+
+        } finally {
+            setSubmitting(false);
+        }
     }
+
 
     return (
         <div className="mx-auto max-w-[900px] px-6 py-8">
@@ -74,6 +181,15 @@ const CreateArmyPage = () => {
             </div>
 
 
+            {error && (
+
+                <div className="mb-6 rounded-md border border-red-800 bg-red-950/30 p-4 text-sm text-red-300">
+                    {error}
+                </div>
+
+            )}
+
+
             <form
                 onSubmit={handleSubmit}
                 className="rounded-lg border border-border bg-card p-6"
@@ -92,7 +208,9 @@ const CreateArmyPage = () => {
                         id="name"
                         type="text"
                         value={name}
-                        onChange={(event) => setName(event.target.value)}
+                        onChange={(event) =>
+                            setName(event.target.value)
+                        }
                         placeholder="Titan's Wrath"
                         required
                         className="w-full rounded-md border border-border bg-background px-4 py-3 text-white outline-none focus:border-gray-500"
@@ -112,29 +230,35 @@ const CreateArmyPage = () => {
 
                     <select
                         id="faction"
-                        value={faction}
+                        value={factionId}
                         onChange={(event) =>
-                            handleFactionChange(event.target.value)
+                            handleFactionChange(
+                                Number(event.target.value)
+                            )
                         }
                         required
-                        className="w-full rounded-md border border-border bg-background px-4 py-3 text-white outline-none focus:border-gray-500"
+                        disabled={loading}
+                        className="w-full rounded-md border border-border bg-background px-4 py-3 text-white outline-none disabled:cursor-not-allowed disabled:opacity-50 focus:border-gray-500"
                     >
 
-                        <option value="">
-                            Select faction
+                        <option value={0}>
+                            {loading
+                                ? "Loading factions..."
+                                : "Select faction"
+                            }
                         </option>
 
-                        <option value="Grey Knights">
-                            Grey Knights
-                        </option>
 
-                        <option value="Adeptus Custodes">
-                            Adeptus Custodes
-                        </option>
+                        {factions.map((faction) => (
 
-                        <option value="Aeldari">
-                            Aeldari
-                        </option>
+                            <option
+                                key={faction.id}
+                                value={faction.id}
+                            >
+                                {faction.name}
+                            </option>
+
+                        ))}
 
                     </select>
 
@@ -152,29 +276,37 @@ const CreateArmyPage = () => {
 
                     <select
                         id="detachment"
-                        value={detachment}
+                        value={detachmentId}
                         onChange={(event) =>
-                            setDetachment(event.target.value)
+                            setDetachmentId(
+                                Number(event.target.value)
+                            )
                         }
                         required
-                        disabled={!faction}
+                        disabled={
+                            factionId === 0 ||
+                            loading
+                        }
                         className="w-full rounded-md border border-border bg-background px-4 py-3 text-white outline-none disabled:cursor-not-allowed disabled:opacity-50 focus:border-gray-500"
                     >
 
-                        <option value="">
+                        <option value={0}>
                             Select detachment
                         </option>
 
-                        {getDetachments(faction).map((detachment) => (
 
-                            <option
-                                key={detachment}
-                                value={detachment}
-                            >
-                                {detachment}
-                            </option>
+                        {availableDetachments.map(
+                            (detachment) => (
 
-                        ))}
+                                <option
+                                    key={detachment.id}
+                                    value={detachment.id}
+                                >
+                                    {detachment.name}
+                                </option>
+
+                            )
+                        )}
 
                     </select>
 
@@ -194,7 +326,9 @@ const CreateArmyPage = () => {
                         id="points"
                         value={pointsLimit}
                         onChange={(event) =>
-                            setPointsLimit(Number(event.target.value))
+                            setPointsLimit(
+                                Number(event.target.value)
+                            )
                         }
                         className="w-full rounded-md border border-border bg-background px-4 py-3 text-white outline-none focus:border-gray-500"
                     >
@@ -230,11 +364,19 @@ const CreateArmyPage = () => {
                         Cancel
                     </button>
 
+
                     <button
                         type="submit"
-                        className="cursor-pointer rounded-md bg-white px-5 py-2.5 text-sm font-semibold text-black hover:bg-gray-200"
+                        disabled={
+                            submitting ||
+                            loading
+                        }
+                        className="cursor-pointer rounded-md bg-white px-5 py-2.5 text-sm font-semibold text-black hover:bg-gray-200 disabled:cursor-not-allowed disabled:opacity-50"
                     >
-                        Create Army
+                        {submitting
+                            ? "Creating..."
+                            : "Create Army"
+                        }
                     </button>
 
                 </div>
@@ -244,5 +386,6 @@ const CreateArmyPage = () => {
         </div>
     )
 }
+
 
 export default CreateArmyPage;
