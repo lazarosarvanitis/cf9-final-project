@@ -10,7 +10,7 @@ from app.schemas.faction_schema import FactionCreate, FactionResponse
 from app.services.faction_service import FactionService
 
 
-#GET /api/factions
+# GET /api/factions
 
 router = APIRouter(
     prefix="/api/factions",
@@ -27,6 +27,7 @@ db_dependency = Annotated[Session, Depends(get_db)]
 )
 async def get_all_factions(db: db_dependency):
     service = FactionService(db)
+
     return service.get_all()
 
 
@@ -88,9 +89,16 @@ async def delete_faction(
         service.delete(faction_id)
 
     except ValueError as error:
+
+        if str(error) == "Faction not found":
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=str(error)
+            )
+
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
+            status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(error)
         )
 
-   
+    

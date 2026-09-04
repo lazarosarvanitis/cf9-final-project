@@ -92,15 +92,32 @@ user_dependency = Annotated[
 
 # ADMIN ACCESS REQUIRED
 # _admin: admin_dependency
-async def require_admin(user: user_dependency):
+async def require_admin(
+    user: user_dependency,
+    db: db_dependency
+):
 
-    if user["role"] != "ADMIN":
+    service = AuthService(db)
+
+    current_user = service.user_repository.get_one(
+        user["user_id"]
+    )
+
+    if (
+        current_user is None or
+        current_user.role != "ADMIN" or
+        not current_user.is_active
+    ):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Admin access required"
         )
 
-    return user 
+    return {
+        "username": current_user.username,
+        "user_id": current_user.id,
+        "role": current_user.role
+    }
 
 
 admin_dependency = Annotated[
@@ -174,4 +191,80 @@ async def get_logged_in_user(
 ):
     return user
 
+
+@router.get(
+    "/users",
+    response_model=list[UserResponse],
+    status_code=status.HTTP_200_OK
+)
+async def get_all_users(
+    db: db_dependency,
+    _admin: admin_dependency
+):
+    service = AuthService(db)
+
+    return service.get_all_users()
+
+
+@router.patch(
+    "/users/{user_id}/promote",
+    response_model=UserResponse,
+    status_code=status.HTTP_200_OK
+)
+async def promote_user(
+    user_id: int,
+    db: db_dependency,
+    _admin: admin_dependency
+):
+    service = AuthService(db)
+
+    try:
+        return service.promote_user(
+            user_id
+        )
+
+    except ValueError as error:
+
+        if str(error) == "User not found":
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=str(error)
+            )
+
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(error)
+        )
+
+
+@router.patch(
+    "/users/{user_id}/demote",
+    response_model=UserResponse,
+    status_code=status.HTTP_200_OK
+)
+async def demote_user(
+    user_id: int,
+    db: db_dependency,
+    admin: admin_dependency
+):
+    service = AuthService(db)
+
+    try:
+        return service.demote_user(
+            user_id,
+            admin["user_id"]
+        )
+
+    except ValueError as error:
+
+        if str(error) == "User not found":
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=str(error)
+            )
+
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(error)
+        )
 

@@ -29,6 +29,7 @@ db_dependency = Annotated[Session, Depends(get_db)]
 )
 async def get_all_detachments(db: db_dependency):
     service = DetachmentService(db)
+
     return service.get_all()
 
 
@@ -114,8 +115,15 @@ async def delete_detachment(
         service.delete(detachment_id)
 
     except ValueError as error:
+
+        if str(error) == "Detachment not found":
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=str(error)
+            )
+
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
+            status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(error)
         )
 
