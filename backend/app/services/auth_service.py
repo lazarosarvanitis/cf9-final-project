@@ -30,7 +30,7 @@ class AuthService:
         email: str,
         password: str
     ):
-        if username.strip() == "": 
+        if username.strip() == "":
             raise ValueError("Username cannot be empty")
 
         if email.strip() == "":
@@ -44,13 +44,13 @@ class AuthService:
             raise ValueError("Username already exists")
 
         existing_email = self.user_repository.get_by_email(
-            email.strip() 
+            email.strip()
         )
 
         if existing_email is not None:
             raise ValueError("Email already exists")
 
-        hashed_password = self.password_hash.hash(password)  
+        hashed_password = self.password_hash.hash(password)
 
         user = User(
             username=username.strip(),
@@ -99,4 +99,52 @@ class AuthService:
             JWT_SECRET_KEY,
             algorithm=ALGORITHM
         )
-    
+
+    # ADMIN USER MANAGEMENT
+
+    def get_all_users(self):
+        return self.user_repository.get_all()
+
+    def promote_user(self, user_id: int):
+        user = self.user_repository.get_one(user_id)
+
+        if user is None:
+            raise ValueError("User not found")
+
+        if user.role == "ADMIN":
+            raise ValueError(
+                "User is already an administrator"
+            )
+
+        user.role = "ADMIN"
+
+        return self.user_repository.update(user)
+
+    def demote_user(
+        self,
+        user_id: int,
+        current_admin_id: int
+    ):
+        user = self.user_repository.get_one(user_id)
+
+        if user is None:
+            raise ValueError("User not found")
+
+        if user.role != "ADMIN":
+            raise ValueError(
+                "User is not an administrator"
+            )
+
+        if user.id == current_admin_id:
+            raise ValueError(
+                "You cannot demote your own administrator account"
+            )
+
+        if self.user_repository.count_admins() <= 1:
+            raise ValueError(
+                "The last administrator cannot be demoted"
+            )
+
+        user.role = "USER"
+
+        return self.user_repository.update(user)

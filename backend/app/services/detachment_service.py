@@ -12,16 +12,18 @@ class DetachmentService:
         self.faction_repository = FactionRepository(db)
 
 
-    def get_all(self):       
+    def get_all(self):
         return self.detachment_repository.get_all()
 
-    def get_one(self, detachment_id: int): 
+
+    def get_one(self, detachment_id: int):
         detachment = self.detachment_repository.get_one(detachment_id)
 
         if detachment is None:
             raise ValueError("Detachment not found")
 
-        return detachment 
+        return detachment
+
 
     def get_by_faction(self, faction_id: int):
         faction = self.faction_repository.get_one(faction_id)
@@ -30,7 +32,7 @@ class DetachmentService:
             raise ValueError("Faction not found")
 
         return self.detachment_repository.get_by_faction(faction_id)
-    
+
 
     def create(self, name: str, faction_id: int):
         if name.strip() == "":
@@ -64,6 +66,15 @@ class DetachmentService:
 
         if detachment is None:
             raise ValueError("Detachment not found")
+
+
+        # DETACHMENT CANNOT BE DELETED WHILE AN ARMY USES IT
+
+        if detachment.armies:
+            raise ValueError(
+                "Detachment cannot be deleted because it is used by armies"
+            )
+
 
         return self.detachment_repository.delete(detachment_id)
 
