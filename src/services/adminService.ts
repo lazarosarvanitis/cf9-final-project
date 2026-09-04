@@ -10,6 +10,15 @@ import type {
 const API_URL = "http://127.0.0.1:8000";
 
 
+export type AdminUserResponse = {
+    id: number;
+    username: string;
+    email: string;
+    role: string;
+    is_active: boolean;
+}
+
+
 const getAuthHeaders = () => {
 
     const token = getToken();
@@ -52,6 +61,83 @@ const getErrorMessage = async (
     }
 
     return fallbackMessage;
+}
+
+
+// USERS
+
+export const getAllUsers = async (): Promise<AdminUserResponse[]> => {
+
+    const response = await fetch(
+        `${API_URL}/api/auth/users`,
+        {
+            headers: getAuthHeaders()
+        }
+    );
+
+    if (!response.ok) {
+
+        throw new Error(
+            await getErrorMessage(
+                response,
+                "Could not load users"
+            )
+        );
+    }
+
+    return response.json();
+}
+
+
+export const promoteUser = async (
+    userId: number
+): Promise<AdminUserResponse> => {
+
+    const response = await fetch(
+        `${API_URL}/api/auth/users/${userId}/promote`,
+        {
+            method: "PATCH",
+            headers: getAuthHeaders()
+        }
+    );
+
+    if (!response.ok) {
+
+        throw new Error(
+            await getErrorMessage(
+                response,
+                "Could not promote user"
+            )
+        );
+    }
+
+    return response.json();
+}
+
+
+export const demoteUser = async (
+    userId: number
+): Promise<AdminUserResponse> => {
+
+    const response = await fetch(
+        `${API_URL}/api/auth/users/${userId}/demote`,
+        {
+            method: "PATCH",
+            headers: getAuthHeaders()
+        }
+    );
+
+    if (!response.ok) {
+
+        throw new Error(
+            await getErrorMessage(
+                response,
+                "Could not demote user"
+            )
+        );
+    }
+
+    return response.json();
 }
 
 
@@ -304,3 +390,4 @@ export const deleteUnit = async (
         );
     }
 }
+
