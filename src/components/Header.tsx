@@ -1,5 +1,5 @@
 import {useEffect, useState} from "react";
-import {LogOut, Menu, Settings} from "lucide-react";
+import {LogOut, Menu, Plus, Shield, X} from "lucide-react";
 import {useNavigate} from "react-router";
 
 import {
@@ -12,14 +12,15 @@ import type {
 } from "../services/authService";
 
 
-// FINAL HEADER
-// FLOW: LOG IN -> HEADER LOADS -> GET CURRENT USER -> IF NOT AUTHENTICATED, LOGOUT AND REDIRECT TO LOGIN PAGE
+// LOG IN -> HEADER LOADS -> GET CURRENT USER
+// USER MENU SHOWS ADMIN PANEL ONLY TO ADMIN USERS
 
 const Header = () => {
 
     const navigate = useNavigate();
 
     const [user, setUser] = useState<CurrentUser | null>(null);
+    const [menuOpen, setMenuOpen] = useState(false);
 
 
     useEffect(() => {
@@ -46,6 +47,14 @@ const Header = () => {
     }, [navigate]);
 
 
+    const navigateTo = (path: string) => {
+
+        setMenuOpen(false);
+
+        navigate(path);
+    }
+
+
     // LOGOUT FUNCTION: CLEAR LOCAL STORAGE AND REDIRECT TO LOGIN PAGE
     const handleLogout = () => {
 
@@ -60,13 +69,14 @@ const Header = () => {
 
             <div className="mx-auto flex h-14 max-w-[1500px] items-center justify-between px-6">
 
-                <div>
-
+                <button
+                    onClick={() => navigateTo("/")}
+                    className="cursor-pointer"
+                >
                     <span className="text-sm font-semibold text-gray-200">
                         Army Builder
                     </span>
-
-                </div>
+                </button>
 
 
                 <div className="flex items-center gap-5 text-gray-400">
@@ -78,18 +88,63 @@ const Header = () => {
                     )}
 
 
-                    <button
-                        className="cursor-pointer hover:text-white"
-                    >
-                        <Menu size={20}/>
-                    </button>
+                    <div className="relative">
+
+                        <button
+                            onClick={() => setMenuOpen(!menuOpen)}
+                            title="Menu"
+                            className="cursor-pointer hover:text-white"
+                        >
+                            {menuOpen ? (
+                                <X size={20}/>
+                            ) : (
+                                <Menu size={20}/>
+                            )}
+                        </button>
 
 
-                    <button
-                        className="cursor-pointer hover:text-white"
-                    >
-                        <Settings size={20}/>
-                    </button>
+                        {menuOpen && (
+
+                            <div
+                                className="absolute right-0 top-9 z-50 w-52 overflow-hidden rounded-lg border border-gray-700 bg-[#181b20] shadow-xl"
+                            >
+
+                                <button
+                                    onClick={() => navigateTo("/")}
+                                    className="flex w-full cursor-pointer items-center gap-3 px-4 py-3 text-left text-sm text-gray-300 hover:bg-white/5 hover:text-white"
+                                >
+                                    <Menu size={17}/>
+
+                                    My Armies
+                                </button>
+
+
+                                <button
+                                    onClick={() => navigateTo("/armies/create")}
+                                    className="flex w-full cursor-pointer items-center gap-3 px-4 py-3 text-left text-sm text-gray-300 hover:bg-white/5 hover:text-white"
+                                >
+                                    <Plus size={17}/>
+
+                                    Create Army
+                                </button>
+
+
+                                {user?.role === "ADMIN" && (
+
+                                    <button
+                                        onClick={() => navigateTo("/admin")}
+                                        className="flex w-full cursor-pointer items-center gap-3 border-t border-gray-700 px-4 py-3 text-left text-sm text-yellow-400 hover:bg-white/5"
+                                    >
+                                        <Shield size={17}/>
+
+                                        Admin Panel
+                                    </button>
+                                )}
+
+                            </div>
+                        )}
+
+                    </div>
 
 
                     <button
