@@ -1,3 +1,8 @@
+import os
+
+from dotenv import load_dotenv
+from pwdlib import PasswordHash
+
 from app.database import Base, SessionLocal, engine
 
 from app.models.army import Army
@@ -6,6 +11,85 @@ from app.models.detachment import Detachment
 from app.models.faction import Faction
 from app.models.unit import Unit
 from app.models.user import User
+
+
+load_dotenv()
+
+password_hash = PasswordHash.recommended()
+
+
+# DATA FOR ADMIN USER
+def seed_admin(db):
+
+    admin_username = os.getenv(
+        "SEED_ADMIN_USERNAME"
+    )
+
+    admin_password = os.getenv(
+        "SEED_ADMIN_PASSWORD"
+    )
+
+    admin_email = os.getenv(
+        "SEED_ADMIN_EMAIL"
+    )
+
+
+    if (
+        not admin_username or
+        not admin_password or
+        not admin_email
+    ):
+
+        print(
+            "Admin seed skipped. Admin credentials are missing from .env"
+        )
+
+        return
+
+
+    admin = db.query(User).filter(
+        User.username == admin_username
+    ).first()
+
+
+    if admin is None:
+
+        existing_email = db.query(User).filter(
+            User.email == admin_email
+        ).first()
+
+        if existing_email is not None:
+
+            print(
+                "Admin seed skipped. Admin email is already in use."
+            )
+
+            return
+
+
+        admin = User(
+            username=admin_username,
+            email=admin_email,
+            hashed_password=password_hash.hash(
+                admin_password
+            ),
+            role="ADMIN",
+            is_active=True
+        )
+
+        db.add(admin)
+        db.commit()
+        db.refresh(admin)
+
+        print(
+            f"Created admin user: {admin.username}"
+        )
+
+    else:
+
+        print(
+            f"Admin user already exists: {admin.username}"
+        )
 
 
 # DATA FOR FACTIONS, DETACHMENTS AND UNITS
@@ -50,6 +134,7 @@ def seed_factions(db):
 
     return factions
 
+
 # DATA FOR DETACHMENTS
 def seed_detachments(db, factions):
 
@@ -68,7 +153,7 @@ def seed_detachments(db, factions):
         }
     ]
 
- 
+
     for data in detachment_data:
 
         faction = factions[
@@ -101,6 +186,7 @@ def seed_detachments(db, factions):
             print(
                 f"Detachment already exists: {data['name']}"
             )
+
 
 # DATA FOR UNITS
 def seed_units(db, factions):
@@ -238,7 +324,7 @@ def seed_units(db, factions):
     ]
 
     for data in unit_data:
-        
+
         faction = factions[
             data["faction"]
         ]
@@ -271,6 +357,245 @@ def seed_units(db, factions):
             )
 
 
+# DATA FOR SAMPLE ADMIN ARMIES
+def seed_admin_armies(db, factions):
+
+    admin_username = os.getenv(
+        "SEED_ADMIN_USERNAME"
+    )
+
+    if not admin_username:
+
+        print(
+            "Admin armies skipped. SEED_ADMIN_USERNAME is missing from .env"
+        )
+
+        return
+
+
+    admin = db.query(User).filter(
+        User.username == admin_username
+    ).first()
+
+    if admin is None:
+
+        print(
+            "Admin armies skipped. Admin user was not found."
+        )
+
+        return
+
+
+    army_data = [
+        {
+            "name": "Titan's Wraith",
+            "points_limit": 2000,
+            "faction": "Grey Knights",
+            "detachment": "Banishers",
+            "units": [
+                {
+                    "name": "Brotherhood Librarian",
+                    "quantity": 1,
+                    "is_warlord": True
+                },
+                {
+                    "name": "Strike Squad",
+                    "quantity": 3,
+                    "is_warlord": False
+                },
+                {
+                    "name": "Terminator Squad",
+                    "quantity": 3,
+                    "is_warlord": False
+                },
+                {
+                    "name": "Paladin Squad",
+                    "quantity": 2,
+                    "is_warlord": False
+                },
+                {
+                    "name": "Nemesis Dreadknight",
+                    "quantity": 2,
+                    "is_warlord": False
+                }
+            ]
+        },
+        {
+            "name": "Golden Host",
+            "points_limit": 2000,
+            "faction": "Adeptus Custodes",
+            "detachment": "Lions of the Emperor",
+            "units": [
+                {
+                    "name": "Blade Champion",
+                    "quantity": 1,
+                    "is_warlord": True
+                },
+                {
+                    "name": "Custodian Guard",
+                    "quantity": 3,
+                    "is_warlord": False
+                },
+                {
+                    "name": "Custodian Wardens",
+                    "quantity": 2,
+                    "is_warlord": False
+                },
+                {
+                    "name": "Allarus Custodians",
+                    "quantity": 3,
+                    "is_warlord": False
+                },
+                {
+                    "name": "Vertus Praetors",
+                    "quantity": 2,
+                    "is_warlord": False
+                }
+            ]
+        },
+        {
+            "name": "Exodites",
+            "points_limit": 2000,
+            "faction": "Eldar",
+            "detachment": "Aspect Host",
+            "units": [
+                {
+                    "name": "Autarch",
+                    "quantity": 1,
+                    "is_warlord": True
+                },
+                {
+                    "name": "Avatar of Khaine",
+                    "quantity": 1,
+                    "is_warlord": False
+                },
+                {
+                    "name": "Dire Avengers",
+                    "quantity": 1,
+                    "is_warlord": False
+                },
+                {
+                    "name": "Howling Banshees",
+                    "quantity": 3,
+                    "is_warlord": False
+                },
+                {
+                    "name": "Fire Dragons",
+                    "quantity": 1,
+                    "is_warlord": False
+                },
+                {
+                    "name": "Striking Scorpions",
+                    "quantity": 3,
+                    "is_warlord": False
+                },
+                {
+                    "name": "Dark Reapers",
+                    "quantity": 1,
+                    "is_warlord": False
+                },
+                {
+                    "name": "Swooping Hawks",
+                    "quantity": 1,
+                    "is_warlord": False
+                },
+                {
+                    "name": "Warp Spiders",
+                    "quantity": 1,
+                    "is_warlord": False
+                },
+                {
+                    "name": "Shining Spears",
+                    "quantity": 1,
+                    "is_warlord": False
+                }
+            ]
+        }
+    ]
+
+
+    for data in army_data:
+
+        faction = factions[
+            data["faction"]
+        ]
+
+        detachment = db.query(
+            Detachment
+        ).filter(
+            Detachment.name == data["detachment"],
+            Detachment.faction_id == faction.id
+        ).first()
+
+        if detachment is None:
+
+            print(
+                f"Sample army skipped. Detachment not found: {data['detachment']}"
+            )
+
+            continue
+
+
+        existing_army = db.query(Army).filter(
+            Army.name == data["name"],
+            Army.user_id == admin.id
+        ).first()
+
+        if existing_army is not None:
+
+            print(
+                f"Army already exists: {data['name']}"
+            )
+
+            continue
+
+
+        army = Army(
+            name=data["name"],
+            points_limit=data["points_limit"],
+            user_id=admin.id,
+            faction_id=faction.id,
+            detachment_id=detachment.id
+        )
+
+        db.add(army)
+        db.commit()
+        db.refresh(army)
+
+
+        for army_unit_data in data["units"]:
+
+            unit = db.query(Unit).filter(
+                Unit.name == army_unit_data["name"],
+                Unit.faction_id == faction.id
+            ).first()
+
+            if unit is None:
+
+                print(
+                    f"Sample army unit not found: {army_unit_data['name']}"
+                )
+
+                continue
+
+
+            army_unit = ArmyUnit(
+                quantity=army_unit_data["quantity"],
+                is_warlord=army_unit_data["is_warlord"],
+                army_id=army.id,
+                unit_id=unit.id
+            )
+
+            db.add(army_unit)
+
+
+        db.commit()
+
+        print(
+            f"Created sample army: {army.name}"
+        )
+
+
 # SEED DATABASE FUNCTION, FOR RUNNING THE SEEDING PROCESS/LOADING DATA INTO THE DATABASE
 def seed_database():
 
@@ -282,6 +607,8 @@ def seed_database():
     try:
 
         print("Starting database seed...")
+
+        seed_admin(db)
 
         factions = seed_factions(db)
 
@@ -295,6 +622,11 @@ def seed_database():
             factions
         )
 
+        seed_admin_armies(
+            db,
+            factions
+        )
+
         print("Database seed complete.")
 
     finally:
@@ -304,4 +636,5 @@ def seed_database():
 
 if __name__ == "__main__":
     seed_database()
+
 
