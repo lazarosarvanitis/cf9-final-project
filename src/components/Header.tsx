@@ -88,12 +88,12 @@ const Header = () => {
                     )}
 
 
-                    <div className="relative">
+                    <div className="relative flex items-center">
 
                         <button
                             onClick={() => setMenuOpen(!menuOpen)}
                             title="Menu"
-                            className="cursor-pointer hover:text-white"
+                            className="flex h-8 w-8 cursor-pointer items-center justify-center hover:text-white"
                         >
                             {menuOpen ? (
                                 <X size={20}/>
