@@ -1,6 +1,9 @@
-import {useState} from "react";
-import type {FormEvent} from "react";
-import {useNavigate} from "react-router";
+import {useEffect, useState} from "react";
+import type {SubmitEvent} from "react";
+import {
+    useLocation,
+    useNavigate
+} from "react-router";
 
 import {
     getCurrentUser,
@@ -15,6 +18,7 @@ import type {
 const LoginPage = () => {
 
     const navigate = useNavigate();
+    const location = useLocation();
 
     const [username, setUsername] = useState("");
     const [password, setPassword] = useState("");
@@ -24,9 +28,53 @@ const LoginPage = () => {
     const [error, setError] = useState("");
     const [loading, setLoading] = useState(false);
 
+    const [redirectCountdown, setRedirectCountdown] = useState(3);
+
+
+    const accountCreated =
+        location.state?.accountCreated === true;
+
+
+    // AFTER SUCCESSFUL LOGIN, AUTOMATICALLY REDIRECT TO MY ARMIES AFTER 3 SECONDS
+
+    useEffect(() => {
+
+        if (!user) {
+            return;
+        }
+
+
+        setRedirectCountdown(3);
+
+
+        const interval = window.setInterval(() => {
+
+            setRedirectCountdown((current) => {
+
+                if (current <= 1) {
+
+                    window.clearInterval(interval);
+
+                    navigate("/");
+
+                    return 0;
+                }
+
+                return current - 1;
+            });
+
+        }, 1000);
+
+
+        return () => {
+            window.clearInterval(interval);
+        }
+
+    }, [user, navigate]);
+
 
     const handleLogin = async (
-        event: FormEvent<HTMLFormElement>
+        event: SubmitEvent<HTMLFormElement>
     ) => {
 
         event.preventDefault();
@@ -54,6 +102,7 @@ const LoginPage = () => {
             }
 
         } finally {
+
             setLoading(false);
         }
     }
@@ -70,34 +119,15 @@ const LoginPage = () => {
                         Login successful
                     </h1>
 
-                    <div className="mt-6 space-y-2 text-sm">
 
-                        <p>
-                            <span className="text-muted">
-                                Username:
-                            </span>{" "}
-                            {user.username}
-                        </p>
+                    <p className="mt-6 text-center text-sm text-muted">
+                        Redirecting to My Armies in {redirectCountdown}...
+                    </p>
 
-                        <p>
-                            <span className="text-muted">
-                                User ID:
-                            </span>{" "}
-                            {user.user_id}
-                        </p>
-
-                        <p>
-                            <span className="text-muted">
-                                Role:
-                            </span>{" "}
-                            {user.role}
-                        </p>
-
-                    </div>
 
                     <button
                         onClick={() => navigate("/")}
-                        className="mt-6 w-full cursor-pointer rounded-md border border-border bg-background px-4 py-3 font-medium transition hover:border-gray-500"
+                        className="mt-4 w-full cursor-pointer rounded-md border border-border bg-background px-4 py-3 font-medium transition hover:border-gray-500"
                     >
                         Continue to My Armies
                     </button>
@@ -121,6 +151,16 @@ const LoginPage = () => {
                 <p className="mt-2 text-sm text-muted">
                     Sign in to manage your armies.
                 </p>
+
+
+                {/* ACCOUNT CREATION SUCCESS MESSAGE */}
+
+                {accountCreated && (
+
+                    <div className="mt-6 rounded-md border border-green-800 bg-green-950/30 p-3 text-sm text-green-300">
+                        Account created successfully. You can now sign in.
+                    </div>
+                )}
 
 
                 <form
@@ -175,6 +215,7 @@ const LoginPage = () => {
 
 
                     {error && (
+
                         <div className="rounded-md border border-red-800 bg-red-950/30 p-3 text-sm text-red-300">
                             {error}
                         </div>
@@ -194,6 +235,25 @@ const LoginPage = () => {
 
                 </form>
 
+
+                {/* REGISTER LINK */}
+
+                <div className="mt-6 border-t border-border pt-6 text-center">
+
+                    <p className="text-sm text-muted">
+                        Don't have an account?
+                    </p>
+
+                    <button
+                        type="button"
+                        onClick={() => navigate("/register")}
+                        className="mt-2 cursor-pointer text-sm font-medium text-gray-200 hover:text-white hover:underline"
+                    >
+                        Create account
+                    </button>
+
+                </div>
+
             </div>
 
         </div>
@@ -202,3 +262,4 @@ const LoginPage = () => {
 
 
 export default LoginPage;
+
