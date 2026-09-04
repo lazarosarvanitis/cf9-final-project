@@ -498,6 +498,27 @@ const ArmyPage = () => {
     }
 
 
+    const handleBackToArmies = () => {
+
+        if (!armyValid) {
+
+            setError(
+                "The army is invalid. Fix all validation errors before returning to My Armies."
+            );
+
+            window.scrollTo({
+                top: 0,
+                behavior: "smooth"
+            });
+
+            return;
+        }
+
+
+        navigate("/");
+    }
+
+
     const handleAddUnit = async (
         unit: UnitResponse
     ) => {
@@ -769,6 +790,18 @@ const ArmyPage = () => {
         }
 
 
+        if (
+            editedArmyName.trim().length > 30
+        ) {
+
+            alert(
+                "Army name cannot be longer than 30 characters."
+            );
+
+            return;
+        }
+
+
         setError("");
 
 
@@ -905,9 +938,7 @@ const ArmyPage = () => {
                 <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
 
                     <button
-                        onClick={() =>
-                            navigate("/")
-                        }
+                        onClick={handleBackToArmies}
                         className="flex cursor-pointer items-center gap-2 text-sm text-muted hover:text-white"
                     >
                         <ArrowLeft size={18}/>
@@ -983,7 +1014,7 @@ const ArmyPage = () => {
 
                         <div className="mt-1 flex items-center gap-3">
 
-                            <h1 className="text-3xl font-semibold">
+                            <h1 className="break-words text-3xl font-semibold">
                                 {armyName}
                             </h1>
 
@@ -1016,6 +1047,7 @@ const ArmyPage = () => {
                                         event.target.value
                                     )
                                 }
+                                maxLength={30}
                                 className="w-full rounded-md border border-border bg-background px-3 py-2 text-white outline-none focus:border-gray-500"
                             />
 
@@ -1245,7 +1277,7 @@ const ArmyPage = () => {
                             >
                                 {hasWarlord
                                     ? "Warlord selected"
-                                    : "Warlord required"
+                                    : "A Character must be selected as your Warlord"
                                 }
                             </span>
 

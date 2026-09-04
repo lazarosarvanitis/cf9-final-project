@@ -1,5 +1,5 @@
 import {useEffect, useState} from "react";
-import type {FormEvent} from "react";
+import type {SubmitEvent} from "react";
 
 import {
     Pencil,
@@ -8,6 +8,7 @@ import {
     Search,
     ShieldCheck,
     Trash2,
+    Users,
     X
 } from "lucide-react";
 
@@ -21,6 +22,9 @@ import {
     getAllDetachments,
     getAllFactions,
     getAllUnits,
+    getAllUsers,
+    promoteUser,
+    demoteUser,
     updateUnit
 } from "../services/adminService";
 
@@ -29,6 +33,10 @@ import type {
     FactionResponse,
     UnitResponse
 } from "../services/armyService";
+
+import type {
+    AdminUserResponse
+} from "../services/adminService";
 
 
 const UNIT_TYPES = [
@@ -49,6 +57,7 @@ const AdminPage = () => {
     const [factions, setFactions] = useState<FactionResponse[]>([]);
     const [detachments, setDetachments] = useState<DetachmentResponse[]>([]);
     const [units, setUnits] = useState<UnitResponse[]>([]);
+    const [users, setUsers] = useState<AdminUserResponse[]>([]);
 
 
     // FACTION FORM
@@ -94,16 +103,19 @@ const AdminPage = () => {
             const [
                 factionData,
                 detachmentData,
-                unitData
+                unitData,
+                userData
             ] = await Promise.all([
                 getAllFactions(),
                 getAllDetachments(),
-                getAllUnits()
+                getAllUnits(),
+                getAllUsers()
             ]);
 
             setFactions(factionData);
             setDetachments(detachmentData);
             setUnits(unitData);
+            setUsers(userData);
 
 
             if (factionData.length > 0) {
@@ -211,10 +223,117 @@ const AdminPage = () => {
         });
 
 
+    // USER SORTING
+
+    const sortedUsers = [...users].sort((a, b) => {
+
+    if (a.role !== b.role) {
+
+        if (a.role === "ADMIN") {
+            return -1;
+        }
+
+        if (b.role === "ADMIN") {
+            return 1;
+        }
+    }
+
+    return a.username.localeCompare(
+        b.username
+    );
+});
+
+
+    // USER HANDLERS
+
+    const handlePromoteUser = async (
+        user: AdminUserResponse
+    ) => {
+
+        const confirmed = window.confirm(
+            `Promote "${user.username}" to administrator?`
+        );
+
+        if (!confirmed) {
+            return;
+        }
+
+        clearMessages();
+
+        try {
+
+            await promoteUser(
+                user.id
+            );
+
+            setSuccess(
+                `${user.username} was promoted to administrator. They must log in again for the new role to take effect.`
+            );
+
+            await loadData();
+
+        } catch (promoteError) {
+
+            if (promoteError instanceof Error) {
+                setError(promoteError.message);
+            }
+        }
+    }
+
+
+    const handleDemoteUser = async (
+        user: AdminUserResponse
+    ) => {
+
+        const confirmed = window.confirm(
+            `Demote "${user.username}" to a normal user?`
+        );
+
+        if (!confirmed) {
+            return;
+        }
+
+        clearMessages();
+
+        try {
+
+            await demoteUser(
+                user.id
+            );
+
+            setSuccess(
+                `${user.username} was demoted to USER. Their existing administrator access is no longer valid.`
+            );
+
+            await loadData();
+
+        } catch (demoteError) {
+
+            if (demoteError instanceof Error) {
+
+                if (
+                    demoteError.message ===
+                    "You cannot demote your own administrator account"
+                ) {
+                    window.alert(
+                        demoteError.message
+                    );
+
+                    return;
+                }
+
+                setError(
+                    demoteError.message
+                );
+            }
+        }
+    }
+
+
     // FACTION HANDLERS
 
     const handleCreateFaction = async (
-        event: FormEvent<HTMLFormElement>
+        event: SubmitEvent<HTMLFormElement>
     ) => {
 
         event.preventDefault();
@@ -281,7 +400,7 @@ const AdminPage = () => {
     // DETACHMENT HANDLERS
 
     const handleCreateDetachment = async (
-        event: FormEvent<HTMLFormElement>
+        event: SubmitEvent<HTMLFormElement>
     ) => {
 
         event.preventDefault();
@@ -354,7 +473,7 @@ const AdminPage = () => {
     // UNIT HANDLERS
 
     const handleSubmitUnit = async (
-        event: FormEvent<HTMLFormElement>
+        event: SubmitEvent<HTMLFormElement>
     ) => {
 
         event.preventDefault();
@@ -512,7 +631,7 @@ const AdminPage = () => {
                     </div>
 
                     <p className="text-sm text-gray-400">
-                        Manage factions, detachments and units.
+                        Manage factions, detachments, units and administrator access.
                     </p>
 
 
@@ -1083,6 +1202,116 @@ const AdminPage = () => {
 
                 </div>
 
+
+                {/* USERS */}
+
+                <section className="mt-6 rounded-xl border border-gray-800 bg-[#15181d]">
+
+                    <div className="border-b border-gray-800 p-5">
+
+                        <div className="flex items-center gap-3">
+
+                            <Users
+                                size={20}
+                                className="text-yellow-400"
+                            />
+
+                            <div>
+
+                                <h2 className="font-semibold text-gray-100">
+                                    Users
+                                </h2>
+
+                                <p className="mt-1 text-xs text-gray-500">
+                                    Promote registered users to administrator.
+                                </p>
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+
+                    <div className="p-3">
+
+                        {sortedUsers.length === 0 && (
+
+                            <p className="px-3 py-5 text-center text-sm text-gray-500">
+                                No users found.
+                            </p>
+                        )}
+
+
+                        {sortedUsers.map((user) => (
+
+                            <div
+                                key={user.id}
+                                className="flex flex-wrap items-center justify-between gap-4 rounded-lg px-3 py-3 hover:bg-white/5"
+                            >
+
+                                <div>
+
+                                    <div className="flex flex-wrap items-center gap-2">
+
+                                        <p className="text-sm text-gray-200">
+                                            {user.username}
+                                        </p>
+
+                                        <span
+                                            className={`rounded-md px-2 py-1 text-xs font-semibold ${
+                                                user.role === "ADMIN"
+                                                    ? "bg-yellow-950/40 text-yellow-400"
+                                                    : "bg-gray-800 text-gray-400"
+                                            }`}
+                                        >
+                                            {user.role}
+                                        </span>
+
+                                    </div>
+
+                                    <p className="mt-1 text-xs text-gray-500">
+                                        {user.email}
+                                    </p>
+
+                                </div>
+
+
+                                {user.role === "USER" ? (
+
+                                    <button
+                                        onClick={() =>
+                                            handlePromoteUser(user)
+                                        }
+                                        className="flex cursor-pointer items-center gap-2 rounded-lg border border-yellow-900/60 px-3 py-2 text-sm text-yellow-400 hover:bg-yellow-950/30"
+                                    >
+                                        <ShieldCheck size={16}/>
+
+                                        Make Admin
+                                    </button>
+
+                                ) : (
+
+                                    <button
+                                        onClick={() =>
+                                            handleDemoteUser(user)
+                                        }
+                                        className="flex cursor-pointer items-center gap-2 rounded-lg border border-red-900/60 px-3 py-2 text-sm text-red-400 hover:bg-red-950/30"
+                                    >
+                                        <ShieldCheck size={16}/>
+
+                                        Demote to User
+                                    </button>
+
+                                )}
+
+                            </div>
+                        ))}
+
+                    </div>
+
+                </section>
+
             </div>
 
         </main>
@@ -1091,3 +1320,4 @@ const AdminPage = () => {
 
 
 export default AdminPage;
+

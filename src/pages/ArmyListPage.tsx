@@ -8,6 +8,10 @@ import {
     getMyArmies
 } from "../services/armyService";
 
+import {
+    getCurrentUser
+} from "../services/authService";
+
 import type {
     ArmyListItem
 } from "../services/armyService";
@@ -19,6 +23,9 @@ const ArmyListPage = () => {
 
     const [armies, setArmies] =
         useState<ArmyListItem[]>([]);
+
+    const [username, setUsername] =
+        useState("");
 
     const [loading, setLoading] =
         useState(true);
@@ -39,10 +46,19 @@ const ArmyListPage = () => {
 
             try {
 
-                const armyData =
-                    await getMyArmies();
+                const [
+                    armyData,
+                    currentUser
+                ] = await Promise.all([
+                    getMyArmies(),
+                    getCurrentUser()
+                ]);
 
                 setArmies(armyData);
+
+                setUsername(
+                    currentUser.username
+                );
 
             } catch (error) {
 
@@ -64,25 +80,41 @@ const ArmyListPage = () => {
 
 
     const filteredArmies =
-        armies.filter((army) => {
+        armies
+            .filter((army) => {
 
-            const searchValue =
-                search.toLowerCase();
+                const searchValue =
+                    search.toLowerCase();
 
-            return (
-                army.name
-                    .toLowerCase()
-                    .includes(searchValue) ||
+                return (
+                    army.name
+                        .toLowerCase()
+                        .includes(searchValue) ||
 
-                army.faction
-                    .toLowerCase()
-                    .includes(searchValue) ||
+                    army.faction
+                        .toLowerCase()
+                        .includes(searchValue) ||
 
-                army.detachment
-                    .toLowerCase()
-                    .includes(searchValue)
-            );
-        });
+                    army.detachment
+                        .toLowerCase()
+                        .includes(searchValue)
+                );
+            })
+            .sort((a, b) => {
+
+                const factionComparison =
+                    a.faction.localeCompare(
+                        b.faction
+                    );
+
+                if (factionComparison !== 0) {
+                    return factionComparison;
+                }
+
+                return a.name.localeCompare(
+                    b.name
+                );
+            });
 
 
     const handleSearchToggle = () => {
@@ -100,10 +132,13 @@ const ArmyListPage = () => {
     return (
         <div className="mx-auto max-w-[1500px] px-6 py-8">
 
-            <div className="mb-8">
+            <div className="mb-8 text-center">
 
                 <h1 className="text-2xl font-semibold">
-                    My Army Lists
+                    {username
+                        ? `${username}'s Army Lists`
+                        : "My Army Lists"
+                    }
                 </h1>
 
                 <p className="mt-1 text-sm text-muted">
@@ -124,7 +159,7 @@ const ArmyListPage = () => {
 
             {showSearch && (
 
-                <div className="relative mb-6 max-w-[500px]">
+                <div className="relative mx-auto mb-6 max-w-[500px]">
 
                     <Search
                         size={18}
@@ -158,22 +193,26 @@ const ArmyListPage = () => {
             )}
 
 
-            <div className="flex gap-4 overflow-x-auto pb-5">
+            <div className="grid grid-cols-[repeat(auto-fit,190px)] justify-center gap-3 pb-5">
 
                 {/* CREATE ARMY */}
                 <button
                     onClick={() => navigate("/armies/create")}
                     className="
-                        flex h-[270px] min-w-[110px] cursor-pointer
-                        items-center justify-center rounded-lg
+                        flex h-[145px] w-[190px] cursor-pointer
+                        flex-col items-center justify-center gap-2 rounded-md
                         border border-border bg-card
                         transition hover:bg-card-hover
                     "
                 >
                     <Plus
-                        size={36}
+                        size={34}
                         strokeWidth={1.5}
                     />
+
+                    <span className="text-sm font-medium">
+                        Create Army
+                    </span>
                 </button>
 
 
@@ -181,8 +220,8 @@ const ArmyListPage = () => {
                 <button
                     onClick={handleSearchToggle}
                     className={`
-                        flex h-[270px] min-w-[110px] cursor-pointer
-                        items-center justify-center rounded-lg
+                        flex h-[145px] w-[190px] cursor-pointer
+                        flex-col items-center justify-center gap-2 rounded-md
                         border bg-card
                         transition hover:bg-card-hover
                         ${
@@ -194,17 +233,29 @@ const ArmyListPage = () => {
                 >
                     {showSearch ? (
 
-                        <X
-                            size={30}
-                            strokeWidth={1.5}
-                        />
+                        <>
+                            <X
+                                size={30}
+                                strokeWidth={1.5}
+                            />
+
+                            <span className="text-sm font-medium">
+                                Close Search
+                            </span>
+                        </>
 
                     ) : (
 
-                        <Search
-                            size={30}
-                            strokeWidth={1.5}
-                        />
+                        <>
+                            <Search
+                                size={30}
+                                strokeWidth={1.5}
+                            />
+
+                            <span className="text-sm font-medium">
+                                Search Army
+                            </span>
+                        </>
 
                     )}
                 </button>
@@ -214,8 +265,8 @@ const ArmyListPage = () => {
                 {loading && (
 
                     <div className="
-                        flex h-[270px] min-w-[260px]
-                        items-center justify-center rounded-lg
+                        flex h-[145px] w-[190px]
+                        items-center justify-center rounded-md
                         border border-border bg-card
                         text-sm text-muted
                     ">
@@ -231,8 +282,8 @@ const ArmyListPage = () => {
                     armies.length === 0 && (
 
                         <div className="
-                            flex h-[270px] min-w-[260px]
-                            items-center justify-center rounded-lg
+                            flex h-[145px] w-[190px]
+                            items-center justify-center rounded-md
                             border border-border bg-card
                             px-6 text-center text-sm text-muted
                         ">
@@ -249,8 +300,8 @@ const ArmyListPage = () => {
                     filteredArmies.length === 0 && (
 
                         <div className="
-                            flex h-[270px] min-w-[260px]
-                            items-center justify-center rounded-lg
+                            flex h-[145px] w-[190px]
+                            items-center justify-center rounded-md
                             border border-border bg-card
                             px-6 text-center text-sm text-muted
                         ">
@@ -284,5 +335,3 @@ const ArmyListPage = () => {
 
 
 export default ArmyListPage;
-
-

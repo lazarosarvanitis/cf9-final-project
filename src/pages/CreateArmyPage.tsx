@@ -1,5 +1,5 @@
 import {useEffect, useState} from "react";
-import type {FormEvent} from "react";
+import type {SubmitEvent} from "react";
 
 import {useNavigate} from "react-router";
 import {ArrowLeft} from "lucide-react";
@@ -107,10 +107,34 @@ const CreateArmyPage = () => {
 
 
     const handleSubmit = async (
-        event: FormEvent<HTMLFormElement>
+        event: SubmitEvent<HTMLFormElement>
     ) => {
 
         event.preventDefault();
+
+
+        const trimmedName =
+            name.trim();
+
+
+        if (!trimmedName) {
+            setError(
+                "Army name is required"
+            );
+
+            return;
+        }
+
+
+        if (
+            trimmedName.length > 30
+        ) {
+            setError(
+                "Army name cannot be longer than 30 characters"
+            );
+
+            return;
+        }
 
 
         if (
@@ -132,15 +156,17 @@ const CreateArmyPage = () => {
 
         try {
 
-            await createArmy(
-                name,
+            const newArmy = await createArmy(
+                trimmedName,
                 pointsLimit,
                 factionId,
                 detachmentId
             );
 
 
-            navigate("/");
+            navigate(
+                `/armies/${newArmy.id}`
+            );
 
         } catch (error) {
 
@@ -194,30 +220,6 @@ const CreateArmyPage = () => {
                 onSubmit={handleSubmit}
                 className="rounded-lg border border-border bg-card p-6"
             >
-
-                <div className="mb-6">
-
-                    <label
-                        htmlFor="name"
-                        className="mb-2 block text-sm font-medium"
-                    >
-                        Army Name
-                    </label>
-
-                    <input
-                        id="name"
-                        type="text"
-                        value={name}
-                        onChange={(event) =>
-                            setName(event.target.value)
-                        }
-                        placeholder="Titan's Wrath"
-                        required
-                        className="w-full rounded-md border border-border bg-background px-4 py-3 text-white outline-none focus:border-gray-500"
-                    />
-
-                </div>
-
 
                 <div className="mb-6">
 
@@ -350,6 +352,31 @@ const CreateArmyPage = () => {
                         </option>
 
                     </select>
+
+                </div>
+
+
+                <div className="mb-8">
+
+                    <label
+                        htmlFor="name"
+                        className="mb-2 block text-sm font-medium"
+                    >
+                        Army Name
+                    </label>
+
+                    <input
+                        id="name"
+                        type="text"
+                        value={name}
+                        onChange={(event) =>
+                            setName(event.target.value)
+                        }
+                        placeholder="My Army"
+                        maxLength={30}
+                        required
+                        className="w-full rounded-md border border-border bg-background px-4 py-3 text-white outline-none focus:border-gray-500"
+                    />
 
                 </div>
 
