@@ -8,6 +8,7 @@ import ArmyListPage from "./pages/ArmyListPage.tsx";
 import CreateArmyPage from "./pages/CreateArmyPage.tsx";
 import ArmyPage from "./pages/ArmyPage.tsx";
 import LoginPage from "./pages/LoginPage.tsx";
+import RegisterPage from "./pages/RegisterPage.tsx";
 import AdminPage from "./pages/AdminPage.tsx";
 
 
@@ -19,6 +20,11 @@ function App() {
             <Route
                 path="login"
                 element={<LoginPage/>}
+            />
+
+            <Route
+                path="register"
+                element={<RegisterPage/>}
             />
 
 
@@ -58,6 +64,7 @@ function App() {
         </Routes>
     )
 }
+
 
 
 export default App;
