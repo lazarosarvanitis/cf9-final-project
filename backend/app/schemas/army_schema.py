@@ -3,7 +3,7 @@ from pydantic import BaseModel, ConfigDict, Field
 # DIFFERENT SCHEMA NEEDED FOR EACH
 
 class ArmyCreate(BaseModel):
-    name: str = Field(min_length=1)
+    name: str = Field(min_length=1, max_length=30)
     points_limit: int = Field(gt=0)
     faction_id: int = Field(gt=0)
     detachment_id: int = Field(gt=0)
@@ -11,7 +11,7 @@ class ArmyCreate(BaseModel):
 
 
 class ArmyRename(BaseModel):
-    name: str = Field(min_length=1)
+    name: str = Field(min_length=1, max_length=30)
 
 
 class ArmyResponse(BaseModel):
@@ -29,4 +29,3 @@ class ArmyValidationResponse(BaseModel):
     valid: bool
     total_points: int
     errors: list[str]
-

@@ -1,17 +1,16 @@
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
-
-## USER SCHEMA 
+# USER SCHEMAS FOR CREATION AND RESPONSE
 class UserCreate(BaseModel):
-    username: str = Field(min_length=3) 
-    email: str = Field(min_length=5) 
-    password: str = Field(min_length=6)        
+    username: str = Field(min_length=3)
+    email: EmailStr # WITH PYDANTIC, EMAIL IS VALIDATED AUTOMATICALLY
+    password: str = Field(min_length=6)
 
 
 class UserResponse(BaseModel):
     id: int
     username: str
-    email: str
+    email: EmailStr
     role: str
     is_active: bool
 
