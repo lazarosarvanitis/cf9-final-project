@@ -22,11 +22,11 @@ class UserRepository:
     def get_by_username(self, username: str):
         return self.db.query(User).filter(
             User.username == username
-        ).first() 
+        ).first()
 
     def get_by_email(self, email: str):
         return self.db.query(User).filter(
-            User.email == email  
+            User.email == email
         ).first()
 
     def insert(self, user: User):
@@ -36,14 +36,25 @@ class UserRepository:
 
         return user
 
+    def update(self, user: User):
+        self.db.add(user)
+        self.db.commit()
+        self.db.refresh(user)
+
+        return user
+
+    def count_admins(self):
+        return self.db.query(User).filter(
+            User.role == "ADMIN"
+        ).count()
+
     def delete(self, user_id: int):
         user = self.get_one(user_id)
 
         if user is None:
             return False
 
-        self.db.delete(user) 
+        self.db.delete(user)
         self.db.commit()
 
         return True
-    

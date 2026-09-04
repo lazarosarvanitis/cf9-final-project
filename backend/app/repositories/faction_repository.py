@@ -13,15 +13,18 @@ class FactionRepository:
     def get_all(self):
         return self.db.query(Faction).all()
 
+
     def get_one(self, faction_id: int):
         return self.db.query(Faction).filter(
             Faction.id == faction_id
         ).first()
 
+
     def get_by_name(self, name: str):
         return self.db.query(Faction).filter(
             Faction.name == name
         ).first()
+
 
     def insert(self, faction: Faction):
         self.db.add(faction)
@@ -29,6 +32,7 @@ class FactionRepository:
         self.db.refresh(faction)
 
         return faction
+
 
     def delete(self, faction_id: int):
         faction = self.get_one(faction_id)
@@ -40,3 +44,4 @@ class FactionRepository:
         self.db.commit()
 
         return True
+    
