@@ -84,7 +84,7 @@ const factionThemes: Record<string, FactionTheme> = {
         progress: "bg-[#e0b84f]"
     },
 
-    "Aeldari": {
+    "Eldar": {
         text: "text-[#e6dcc3]",
         border: "border-violet-700/40",
         background: "bg-[#211a2b]",
