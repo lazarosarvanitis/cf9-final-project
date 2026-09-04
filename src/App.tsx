@@ -2,11 +2,13 @@ import {Route, Routes} from "react-router";
 
 import RouterLayout from "./components/RouterLayout.tsx";
 import ProtectedRoute from "./components/ProtectedRoute.tsx";
+import AdminRoute from "./components/AdminRoute.tsx";
 
 import ArmyListPage from "./pages/ArmyListPage.tsx";
 import CreateArmyPage from "./pages/CreateArmyPage.tsx";
 import ArmyPage from "./pages/ArmyPage.tsx";
 import LoginPage from "./pages/LoginPage.tsx";
+import AdminPage from "./pages/AdminPage.tsx";
 
 
 function App() {
@@ -38,6 +40,16 @@ function App() {
                         path="armies/:armyId"
                         element={<ArmyPage/>}
                     />
+
+
+                    <Route element={<AdminRoute/>}>
+
+                        <Route
+                            path="admin"
+                            element={<AdminPage/>}
+                        />
+
+                    </Route>
 
                 </Route>
 
